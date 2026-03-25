@@ -7,28 +7,22 @@
 
   var params = new URLSearchParams(window.location.search);
   var gameKey = params.get("game");
-  var version = params.get("version");
-  var wOverride = params.get("w");
-  var hOverride = params.get("h");
+  var versionRaw = params.get("version");
+  var version = versionRaw != null ? String(versionRaw).trim() : "";
 
-  var titleEl = document.getElementById("title");
-  var subtitleEl = document.getElementById("subtitle");
   var statusEl = document.getElementById("status");
   var frameHost = document.getElementById("frameHost");
   var iframe = document.getElementById("game");
 
   function fail(msg) {
+    document.title = "Cannot play — nicapotato";
     statusEl.hidden = false;
     statusEl.textContent = msg;
-    titleEl.textContent = "Cannot play";
-    subtitleEl.textContent = "";
     frameHost.style.display = "none";
   }
 
   if (!gameKey || !version) {
-    fail(
-      "Missing query params. Use ?game=mindsweeper&version=YOUR_VERSION (optional &w=…&h=… for iframe size)."
-    );
+    fail("Missing query params. Use ?game=mindsweeper&version=YOUR_VERSION or version=latest. Use the browser back button to return.");
     return;
   }
 
@@ -37,6 +31,15 @@
     if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
     if (platforms.web && platforms.web.play_url) return platforms.web;
     return null;
+  }
+
+  function highestVersionKey(versionsObj) {
+    var keys = Object.keys(versionsObj || {});
+    if (!keys.length) return null;
+    keys.sort(function (a, b) {
+      return b.localeCompare(a, undefined, { numeric: true });
+    });
+    return keys[0];
   }
 
   (async function () {
@@ -55,7 +58,18 @@
       fail("Unknown game: " + gameKey);
       return;
     }
-    var v = (g.versions && g.versions[version]) || null;
+
+    var resolvedVersion = version;
+    if (version.toLowerCase() === "latest") {
+      var pick = highestVersionKey(g.versions);
+      if (!pick) {
+        fail("No versions published for this game.");
+        return;
+      }
+      resolvedVersion = pick;
+    }
+
+    var v = (g.versions && g.versions[resolvedVersion]) || null;
     if (!v) {
       fail("Unknown version for this game: " + version);
       return;
@@ -66,23 +80,8 @@
       return;
     }
 
-    var iframeCfg = v.iframe || {};
-    var w = Number(wOverride || iframeCfg.width || 800);
-    var h = Number(hOverride || iframeCfg.height || 600);
-    if (!Number.isFinite(w) || w < 200) w = 800;
-    if (!Number.isFinite(h) || h < 200) h = 600;
-
-    titleEl.textContent = (g.display_name || gameKey) + " — " + version;
-    subtitleEl.textContent =
-      "Iframe " +
-      w +
-      "×" +
-      h +
-      " px" +
-      (wOverride || hOverride ? " (overridden via URL)" : " (from catalog; add ?w=&h= to override)");
-
-    frameHost.style.width = w + "px";
-    frameHost.style.height = h + "px";
+    document.title =
+      (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
     iframe.style.width = "100%";
     iframe.style.height = "100%";
     iframe.src = play.play_url;

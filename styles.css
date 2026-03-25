@@ -65,6 +65,85 @@ a:hover {
   padding: 1.5rem 1.25rem 3rem;
 }
 
+.wrap--catalog {
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+table.catalog-table td.cell-version,
+table.catalog-table td.cell-platform {
+  min-width: 10rem;
+}
+
+.catalog-select {
+  font: inherit;
+  font-size: 0.8125rem;
+  max-width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  margin-top: 0.35rem;
+}
+
+.catalog-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.catalog-field-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.version-meta {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.plat-icons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.plat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  opacity: 0.35;
+}
+
+.plat-icon--avail {
+  opacity: 1;
+  color: var(--text);
+}
+
+.plat-icon--selected.plat-icon--avail {
+  color: var(--accent);
+}
+
+.plat-icon svg {
+  display: block;
+}
+
+a.play-link[hidden],
+a.js-zip[hidden] {
+  display: none !important;
+}
+
 header {
   margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--border);
@@ -165,24 +244,36 @@ button.btn:hover {
   color: var(--accent);
 }
 
-/* play.html */
-.play-wrap {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 1rem;
+/* play.html — full-viewport game (browser back to leave) */
+html.play-page-root,
+html.play-page-root body.play-page {
+  height: 100%;
 }
 
-.play-header {
-  margin-bottom: 1rem;
-}
-
-.play-frame-wrap {
-  margin: 0 auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+body.play-page {
+  margin: 0;
   overflow: hidden;
   background: #000;
-  /* width/height set inline from catalog or query params */
+}
+
+body.play-page .play-page-status {
+  position: fixed;
+  z-index: 2;
+  left: 1rem;
+  right: 1rem;
+  top: 1rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+body.play-page .play-frame-wrap {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  background: #000;
 }
 
 .play-frame-wrap iframe {
@@ -190,8 +281,4 @@ button.btn:hover {
   border: none;
   width: 100%;
   height: 100%;
-}
-
-.back-row {
-  margin-top: 1rem;
 }
