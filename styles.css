@@ -72,9 +72,86 @@ a:hover {
   padding: 1.5rem 1.25rem 3rem;
 }
 
+table.catalog-table td.cell-title {
+  min-width: 10rem;
+}
+
 table.catalog-table td.cell-version,
 table.catalog-table td.cell-platform {
-  min-width: 12rem;
+  min-width: 9rem;
+}
+
+.cell-title {
+  vertical-align: top;
+}
+
+.cell-title-name {
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+.cell-title .plat-icons {
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.catalog-toolbar-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 0.25rem;
+}
+
+.catalog-toolbar-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+button.plat-filter {
+  font: inherit;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+button.plat-filter:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+button.plat-filter[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(110, 181, 255, 0.12);
+}
+
+button.plat-filter svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .catalog-inline {
@@ -88,13 +165,7 @@ table.catalog-table td.cell-platform {
   margin-top: 0;
   flex: 1;
   min-width: 7rem;
-}
-
-.catalog-count {
-  font-size: 0.75rem;
-  color: var(--muted);
-  white-space: nowrap;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .catalog-select {
