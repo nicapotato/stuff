@@ -27,9 +27,18 @@
     statusEl.classList.toggle("error", !!isError);
   }
 
-  function shortSha(hex) {
-    if (!hex || hex.length < 16) return hex || "—";
-    return hex.slice(0, 8) + "…" + hex.slice(-6);
+  function formatReleased(raw) {
+    if (raw == null || raw === "" || raw === "—") return "—";
+    var d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(d);
+    } catch (e) {
+      return d.toISOString().slice(0, 16).replace("T", " ");
+    }
   }
 
   function playHref(gameKey, version) {
@@ -126,12 +135,15 @@
     var sha = info.sha256 || "—";
     var released = vData.released_at || "—";
 
-    tr.querySelector(".js-released").textContent = released;
-    var shaShort = tr.querySelector(".js-sha-short");
-    shaShort.textContent = shortSha(sha);
-    shaShort.setAttribute("title", sha);
-    var copyBtn = tr.querySelector(".copy-sha");
-    copyBtn.dataset.sha = sha;
+    tr.querySelector(".js-released").textContent = formatReleased(released);
+    tr.querySelector(".js-sha-full").textContent = sha;
+
+    var platCountEl = tr.querySelector(".js-platform-count");
+    if (platCountEl) {
+      var nPlat = available.length;
+      platCountEl.textContent =
+        nPlat + " platform" + (nPlat === 1 ? "" : "s");
+    }
 
     var zipA = tr.querySelector(".js-zip");
     if (info.zip_url) {
@@ -171,10 +183,7 @@
       if (!res.ok) throw new Error("HTTP " + res.status);
       catalog = await res.json();
     } catch (e) {
-      showStatus(
-        "Could not load catalog from S3. Check CORS, the bucket URL, and that CI has published this catalog.",
-        true
-      );
+      showStatus("Nothing Available", true);
       return;
     }
 
@@ -226,45 +235,45 @@
       var vid = "stuff-ver-" + ri;
       var pid = "stuff-plat-" + ri;
       var vcid = "stuff-vc-" + ri;
+      var plcid = "stuff-plc-" + ri;
+      var verCountLabel =
+        nVer + " version" + (nVer === 1 ? "" : "s");
 
       tr.innerHTML =
         "<td>" +
         escapeHtml(item.name) +
         "</td>" +
         '<td class="cell-version">' +
-        '<label class="catalog-field-label" for="' +
-        vid +
-        '">Version</label>' +
+        '<div class="catalog-inline">' +
+        '<span class="catalog-count" id="' +
+        vcid +
+        '">' +
+        escapeHtml(verCountLabel) +
+        "</span>" +
         '<select id="' +
         vid +
-        '" class="catalog-select js-version" aria-describedby="' +
+        '" class="catalog-select js-version" aria-label="Version" aria-describedby="' +
         vcid +
         '">' +
         verOptions +
         "</select>" +
-        '<span class="version-meta" id="' +
-        vcid +
-        '">' +
-        nVer +
-        " version" +
-        (nVer === 1 ? "" : "s") +
-        " available</span>" +
+        "</div>" +
         "</td>" +
         '<td class="cell-platform">' +
         buildIconRow() +
-        '<label class="catalog-field-label" for="' +
-        pid +
-        '">Platform</label>' +
+        '<div class="catalog-inline">' +
+        '<span class="catalog-count js-platform-count" id="' +
+        plcid +
+        '" aria-live="polite">—</span>' +
         '<select id="' +
         pid +
-        '" class="catalog-select js-platform"></select>' +
+        '" class="catalog-select js-platform" aria-label="Platform" aria-describedby="' +
+        plcid +
+        '"></select>' +
+        "</div>" +
         "</td>" +
         '<td class="js-released">—</td>' +
-        '<td class="sha">' +
-        '<span class="sha-short js-sha-short" title="">—</span>' +
-        '<span class="actions">' +
-        '<button type="button" class="btn copy-sha" data-sha="">Copy</button>' +
-        "</span></td>" +
+        '<td class="sha"><code class="sha-full js-sha-full">—</code></td>' +
         '<td><a class="js-zip" href="#" download rel="noopener">ZIP</a></td>' +
         '<td class="cell-play"><a class="play-link js-play" href="#" hidden>Play in browser</a><span class="js-play-dash">—</span></td>';
 
@@ -279,20 +288,6 @@
       if (!t || (!t.classList.contains("js-version") && !t.classList.contains("js-platform"))) return;
       var row = t.closest("tr.catalog-row");
       if (row) updateRow(row, games);
-    });
-
-    rowsEl.addEventListener("click", function (ev) {
-      var btn = ev.target.closest(".copy-sha");
-      if (!btn || !btn.dataset.sha) return;
-      navigator.clipboard.writeText(btn.dataset.sha).then(
-        function () {
-          btn.textContent = "Copied";
-          setTimeout(function () {
-            btn.textContent = "Copy";
-          }, 1500);
-        },
-        function () {}
-      );
     });
   }
 

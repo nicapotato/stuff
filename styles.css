@@ -74,7 +74,27 @@ a:hover {
 
 table.catalog-table td.cell-version,
 table.catalog-table td.cell-platform {
-  min-width: 10rem;
+  min-width: 12rem;
+}
+
+.catalog-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.catalog-inline .catalog-select {
+  margin-top: 0;
+  flex: 1;
+  min-width: 7rem;
+}
+
+.catalog-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .catalog-select {
@@ -86,28 +106,11 @@ table.catalog-table td.cell-platform {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  margin-top: 0.35rem;
 }
 
 .catalog-select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-}
-
-.catalog-field-label {
-  display: block;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.version-meta {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--muted);
 }
 
 .plat-icons {
@@ -214,12 +217,18 @@ tr:hover td {
 
 .sha {
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   word-break: break-all;
 }
 
-.sha-short {
-  cursor: help;
+.sha-full {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: normal;
+  color: inherit;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
 }
 
 .actions {
