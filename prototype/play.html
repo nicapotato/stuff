@@ -7,13 +7,18 @@
   </head>
   <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
     <p>
-      <a href="../games/play.html" style="color: #6eb5ff">Open play page</a>
-      (add <code>?maturity=prototype</code> if needed).
+      <a href="../games/prototype/play.html" style="color: #6eb5ff">Open play page</a>
+      (prototype builds live under <code>games/prototype/play.html</code>).
     </p>
     <script>
-      var u = new URL(window.location.href);
-      if (!u.searchParams.get("maturity")) u.searchParams.set("maturity", "prototype");
-      window.location.replace("../games/play.html" + u.search + (u.hash || ""));
+      (function () {
+        var u = new URL(window.location.href);
+        u.searchParams.delete("maturity");
+        var qs = u.searchParams.toString();
+        window.location.replace(
+          "../games/prototype/play.html" + (qs ? "?" + qs : "") + (u.hash || "")
+        );
+      })();
     </script>
   </body>
 </html>

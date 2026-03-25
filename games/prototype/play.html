@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" class="play-page-root">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Play — nicapotato</title>
+    <link rel="stylesheet" href="../../styles.css" />
+  </head>
+  <body class="play-page">
+    <div id="status" class="banner error play-page-status" hidden></div>
+    <div id="frameHost" class="play-frame-wrap">
+      <iframe id="game" title="Game" allow="fullscreen" loading="lazy"></iframe>
+    </div>
+    <script>
+      window.__STUFF_CATALOG_BASE__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
+      window.__STUFF_PAGE_SECTION__ = "games";
+    </script>
+    <script src="../../play.js"></script>
+  </body>
+</html>

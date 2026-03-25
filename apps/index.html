@@ -22,13 +22,21 @@
         <table class="catalog-table">
           <thead>
             <tr>
-              <th>Software</th>
-              <th>Version</th>
-              <th>Platform</th>
-              <th>Released</th>
-              <th>SHA-256</th>
-              <th>Download</th>
-              <th>Play</th>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="title">
+                  Software
+                </button>
+              </th>
+              <th scope="col">Version</th>
+              <th scope="col">Platform</th>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="released">
+                  Released
+                </button>
+              </th>
+              <th scope="col">SHA-256</th>
+              <th scope="col">Download</th>
+              <th scope="col">Play</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>

@@ -8,15 +8,18 @@
 
   var ROOT_KEY = PAGE_SECTION === "apps" ? "apps" : "games";
 
+  function maturityFromPath() {
+    var path = window.location.pathname.replace(/\/+$/, "");
+    var m = path.match(/\/(games|apps)\/(released|prototype)\/play\.html$/i);
+    return m ? m[2].toLowerCase() : null;
+  }
+
   var params = new URLSearchParams(window.location.search);
   var gameKey = params.get("game");
   var versionRaw = params.get("version");
   var version = versionRaw != null ? String(versionRaw).trim() : "";
-  var maturityRaw = params.get("maturity");
-  var maturity =
-    maturityRaw === "prototype" || maturityRaw === "released"
-      ? maturityRaw
-      : "released";
+  var maturity = maturityFromPath();
+  if (maturity !== "prototype" && maturity !== "released") maturity = "released";
 
   var statusEl = document.getElementById("status");
   var frameHost = document.getElementById("frameHost");
@@ -31,7 +34,7 @@
 
   if (!gameKey || !version) {
     fail(
-      "Missing query params. Use ?game=KEY&version=VERSION&maturity=released|prototype. Use the browser back button to return."
+      "Missing query params. Open this page from the catalog (Play link), or use e.g. games/prototype/play.html?game=KEY&version=VERSION."
     );
     return;
   }

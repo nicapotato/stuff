@@ -7,12 +7,19 @@
   </head>
   <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
     <p>
-      <a href="games/play.html" style="color: #6eb5ff">Continue to play page</a>
+      <a href="games/released/play.html" style="color: #6eb5ff">Continue to play page</a>
     </p>
     <script>
-      var q = window.location.search || "";
-      var h = window.location.hash || "";
-      window.location.replace("games/play.html" + q + h);
+      (function () {
+        var u = new URL(window.location.href);
+        var mat = u.searchParams.get("maturity");
+        u.searchParams.delete("maturity");
+        var folder = mat === "prototype" ? "prototype" : "released";
+        var qs = u.searchParams.toString();
+        window.location.replace(
+          "games/" + folder + "/play.html" + (qs ? "?" + qs : "") + (u.hash || "")
+        );
+      })();
     </script>
   </body>
 </html>
