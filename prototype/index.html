@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype software — nicapotato</title>
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="site-nav" aria-label="Catalog sections">
+        <a href="../index.html">Released</a>
+        <a href="./index.html" class="active">Prototype</a>
+      </nav>
+      <header>
+        <h1>Prototype software</h1>
+        <p class="sub">
+          Experimental builds under <code>prototype/games/…</code> on S3. Same layout as released; different catalog.
+        </p>
+      </header>
+      <div id="status" class="banner" hidden></div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Software</th>
+              <th>Version</th>
+              <th>Platform</th>
+              <th>Released</th>
+              <th>SHA-256</th>
+              <th>Download</th>
+              <th>Play</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <script>
+      window.__STUFF_CATALOG_URL__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com/prototype/games/catalog.json";
+      window.__STUFF_PAGE_KIND__ = "prototype";
+    </script>
+    <script src="../catalog.js"></script>
+  </body>
+</html>

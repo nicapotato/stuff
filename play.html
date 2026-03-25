@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Play — nicapotato</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="play-wrap">
+      <nav class="site-nav" aria-label="Catalog sections">
+        <a href="./index.html">Released</a>
+        <a href="./prototype/">Prototype</a>
+      </nav>
+      <header class="play-header">
+        <h1 id="title">Loading…</h1>
+        <p class="sub" id="subtitle"></p>
+      </header>
+      <div id="status" class="banner error" hidden></div>
+      <div id="frameHost" class="play-frame-wrap" style="width: 800px; height: 600px">
+        <iframe id="game" title="Game" allow="fullscreen" loading="lazy"></iframe>
+      </div>
+      <p class="back-row">
+        <a href="./index.html">← Back to released catalog</a>
+      </p>
+    </div>
+    <script>
+      window.__STUFF_CATALOG_URL__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com/released/games/catalog.json";
+    </script>
+    <script src="./play.js"></script>
+  </body>
+</html>

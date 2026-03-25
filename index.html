@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Released software — nicapotato</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="site-nav" aria-label="Catalog sections">
+        <a href="./index.html" class="active">Released</a>
+        <a href="./prototype/">Prototype</a>
+      </nav>
+      <header>
+        <h1>Released software</h1>
+        <p class="sub">
+          Stable builds under <code>released/games/…</code> on S3. Verify ZIPs with SHA-256 before running.
+        </p>
+      </header>
+      <div id="status" class="banner" hidden></div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Software</th>
+              <th>Version</th>
+              <th>Platform</th>
+              <th>Released</th>
+              <th>SHA-256</th>
+              <th>Download</th>
+              <th>Play</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <script>
+      window.__STUFF_CATALOG_URL__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com/released/games/catalog.json";
+      window.__STUFF_PAGE_KIND__ = "released";
+    </script>
+    <script src="./catalog.js"></script>
+  </body>
+</html>
