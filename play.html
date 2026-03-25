@@ -1,20 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" class="play-page-root">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Play — nicapotato</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <title>Redirect — nicapotato</title>
   </head>
-  <body class="play-page">
-    <div id="status" class="banner error play-page-status" hidden></div>
-    <div id="frameHost" class="play-frame-wrap">
-      <iframe id="game" title="Game" allow="fullscreen" loading="lazy"></iframe>
-    </div>
+  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
+    <p>
+      <a href="games/play.html" style="color: #6eb5ff">Continue to play page</a>
+    </p>
     <script>
-      window.__STUFF_CATALOG_URL__ =
-        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com/released/games/catalog.json";
+      var q = window.location.search || "";
+      var h = window.location.hash || "";
+      window.location.replace("games/play.html" + q + h);
     </script>
-    <script src="./play.js"></script>
   </body>
 </html>

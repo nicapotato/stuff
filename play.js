@@ -1,14 +1,22 @@
 (function () {
-  var CATALOG_URL = window.__STUFF_CATALOG_URL__;
-  if (!CATALOG_URL) {
-    console.error("play.js: set window.__STUFF_CATALOG_URL__ before loading");
+  var CATALOG_BASE = window.__STUFF_CATALOG_BASE__;
+  var PAGE_SECTION = window.__STUFF_PAGE_SECTION__ || "games";
+  if (!CATALOG_BASE) {
+    console.error("play.js: set window.__STUFF_CATALOG_BASE__ before loading");
     return;
   }
+
+  var ROOT_KEY = PAGE_SECTION === "apps" ? "apps" : "games";
 
   var params = new URLSearchParams(window.location.search);
   var gameKey = params.get("game");
   var versionRaw = params.get("version");
   var version = versionRaw != null ? String(versionRaw).trim() : "";
+  var maturityRaw = params.get("maturity");
+  var maturity =
+    maturityRaw === "prototype" || maturityRaw === "released"
+      ? maturityRaw
+      : "released";
 
   var statusEl = document.getElementById("status");
   var frameHost = document.getElementById("frameHost");
@@ -22,7 +30,9 @@
   }
 
   if (!gameKey || !version) {
-    fail("Missing query params. Use ?game=mindsweeper&version=YOUR_VERSION or version=latest. Use the browser back button to return.");
+    fail(
+      "Missing query params. Use ?game=KEY&version=VERSION&maturity=released|prototype. Use the browser back button to return."
+    );
     return;
   }
 
@@ -43,9 +53,11 @@
   }
 
   (async function () {
+    var base = String(CATALOG_BASE).replace(/\/+$/, "");
+    var catalogUrl = base + "/" + PAGE_SECTION + "/" + maturity + "/catalog.json";
     var catalog;
     try {
-      var res = await fetch(CATALOG_URL, { cache: "no-store" });
+      var res = await fetch(catalogUrl, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       catalog = await res.json();
     } catch (e) {
@@ -53,9 +65,10 @@
       return;
     }
 
-    var g = (catalog.games && catalog.games[gameKey]) || null;
+    var root = (catalog && catalog[ROOT_KEY]) || {};
+    var g = root[gameKey] || null;
     if (!g) {
-      fail("Unknown game: " + gameKey);
+      fail("Unknown item: " + gameKey);
       return;
     }
 
@@ -63,7 +76,7 @@
     if (version.toLowerCase() === "latest") {
       var pick = highestVersionKey(g.versions);
       if (!pick) {
-        fail("No versions published for this game.");
+        fail("No versions published.");
         return;
       }
       resolvedVersion = pick;
@@ -71,7 +84,7 @@
 
     var v = (g.versions && g.versions[resolvedVersion]) || null;
     if (!v) {
-      fail("Unknown version for this game: " + version);
+      fail("Unknown version: " + version);
       return;
     }
     var play = pickPlayPlatform(v.platforms);

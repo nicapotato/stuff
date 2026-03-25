@@ -3,42 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Released — nicapotato</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <title>Redirect — nicapotato</title>
+    <meta http-equiv="refresh" content="0; url=games/index.html" />
+    <link rel="canonical" href="games/index.html" />
   </head>
-  <body>
-    <div class="wrap wrap--catalog">
-      <nav class="site-nav" aria-label="Catalog sections">
-        <a href="./index.html" class="active">Released</a>
-        <a href="./prototype/">Prototype</a>
-      </nav>
-      <header>
-        <h1>Released</h1>
-      </header>
-      <div id="status" class="banner" hidden></div>
-      <div id="catalog-toolbar" class="catalog-toolbar" hidden></div>
-      <div class="table-scroll">
-        <table class="catalog-table">
-          <thead>
-            <tr>
-              <th>Software</th>
-              <th>Version</th>
-              <th>Platform</th>
-              <th>Released</th>
-              <th>SHA-256</th>
-              <th>Download</th>
-              <th>Play</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
-    </div>
+  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
+    <p>
+      Redirecting to <a href="games/index.html" style="color: #6eb5ff">Games</a>…
+    </p>
     <script>
-      window.__STUFF_CATALOG_URL__ =
-        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com/released/games/catalog.json";
-      window.__STUFF_PAGE_KIND__ = "released";
+      window.location.replace("games/index.html" + window.location.search + window.location.hash);
     </script>
-    <script src="./catalog.js"></script>
   </body>
 </html>

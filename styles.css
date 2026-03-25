@@ -99,12 +99,25 @@ table.catalog-table td.cell-platform {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 0.75rem;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
   margin-bottom: 1rem;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.catalog-toolbar-left,
+.catalog-toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.catalog-toolbar-right {
+  margin-left: auto;
 }
 
 .catalog-toolbar-label {
@@ -152,6 +165,32 @@ button.plat-filter[aria-pressed="true"] {
 button.plat-filter svg {
   display: block;
   flex-shrink: 0;
+}
+
+button.mat-filter {
+  font: inherit;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+button.mat-filter:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+button.mat-filter[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(110, 181, 255, 0.12);
 }
 
 .catalog-inline {
