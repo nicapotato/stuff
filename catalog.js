@@ -344,6 +344,9 @@
 
     toolbarEl.appendChild(left);
     toolbarEl.appendChild(right);
+
+    activeFilterMaturities.add("released");
+    syncFilterButtonPressedStates();
   }
 
   function hasPlayable(info, platform) {
