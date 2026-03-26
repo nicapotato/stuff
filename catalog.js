@@ -142,6 +142,27 @@
     return selectedCatalogPlatform === slot;
   }
 
+  function pickCatalogPlatformForUiSlot(slot, platformSel) {
+    var opts = Array.prototype.map.call(platformSel.options, function (o) {
+      return o.value;
+    });
+    if (slot === "web") {
+      var order = ["wasm", "web"];
+      var webOpts = [];
+      for (var i = 0; i < order.length; i++) {
+        if (opts.indexOf(order[i]) >= 0) webOpts.push(order[i]);
+      }
+      if (webOpts.length === 0) return null;
+      if (webOpts.length === 1) return webOpts[0];
+      var cur = platformSel.value;
+      var curIdx = webOpts.indexOf(cur);
+      if (curIdx >= 0) return webOpts[(curIdx + 1) % webOpts.length];
+      return webOpts[0];
+    }
+    if (opts.indexOf(slot) >= 0) return slot;
+    return null;
+  }
+
   function toolbarIconSvg(p) {
     return PLATFORM_SVG[p].replace(/width="20"/, 'width="18"').replace(/height="20"/, 'height="18"');
   }
@@ -357,15 +378,27 @@
     var parts = [];
     for (var i = 0; i < uiPlatformOrder.length; i++) {
       var p = uiPlatformOrder[i];
+      var aria =
+        p === "linux"
+          ? "Linux"
+          : p === "web"
+            ? "Web or WASM"
+            : p === "macos"
+              ? "macOS"
+              : "Windows";
       parts.push(
-        '<span class="plat-icon" data-plat="' +
+        '<button type="button" class="plat-icon" data-plat="' +
           escapeAttr(p) +
-          '">' +
+          '" aria-label="Select platform: ' +
+          escapeAttr(aria) +
+          '" title="Select ' +
+          escapeAttr(aria) +
+          '" disabled>' +
           PLATFORM_SVG[p] +
-          "</span>"
+          "</button>"
       );
     }
-    return '<div class="plat-icons" aria-hidden="true">' + parts.join("") + "</div>";
+    return '<div class="plat-icons" role="group" aria-label="Platform">' + parts.join("") + "</div>";
   }
 
   function updateRow(tr, itemsByKey) {
@@ -432,8 +465,10 @@
       var slot = el.getAttribute("data-plat");
       var avail = uiSlotHasCatalogZip(slot, available);
       var sel = uiSlotMatchesPlatform(slot, plat);
+      el.disabled = !avail;
       el.classList.toggle("plat-icon--avail", avail);
       el.classList.toggle("plat-icon--selected", avail && sel);
+      el.setAttribute("aria-pressed", avail && sel ? "true" : "false");
     }
 
     if (catalogSortState.key === "released") applyCatalogSort();
@@ -580,6 +615,20 @@
       if (!t || (!t.classList.contains("js-version") && !t.classList.contains("js-platform"))) return;
       var row = t.closest("tr.catalog-row");
       if (row) updateRow(row, itemsByKey);
+    });
+
+    rowsEl.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("button.plat-icon");
+      if (!btn || btn.disabled) return;
+      var row = btn.closest("tr.catalog-row");
+      if (!row) return;
+      var slot = btn.getAttribute("data-plat");
+      var platformSel = row.querySelector(".js-platform");
+      if (!platformSel) return;
+      var pick = pickCatalogPlatformForUiSlot(slot, platformSel);
+      if (pick == null || platformSel.value === pick) return;
+      platformSel.value = pick;
+      updateRow(row, itemsByKey);
     });
   }
 
