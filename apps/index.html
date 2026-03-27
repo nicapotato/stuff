@@ -3,52 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Apps — nicapotato</title>
-    <link rel="stylesheet" href="../styles.css" />
+    <title>Redirect — nicapotato</title>
+    <meta http-equiv="refresh" content="0; url=../index.html?category=apps" />
   </head>
-  <body>
-    <div class="wrap wrap--catalog">
-      <header>
-        <div class="catalog-header-top">
-          <h1>Apps</h1>
-          <nav class="site-nav" aria-label="Catalog sections">
-            <a href="../games/index.html">Games</a>
-            <a href="./index.html" class="active">Apps</a>
-          </nav>
-        </div>
-      </header>
-      <div id="status" class="banner" hidden></div>
-      <div id="catalog-toolbar" class="catalog-toolbar" hidden></div>
-      <div class="table-scroll">
-        <table class="catalog-table">
-          <thead>
-            <tr>
-              <th scope="col">
-                <button type="button" class="catalog-th-sort" data-sort-key="title">
-                  Software
-                </button>
-              </th>
-              <th scope="col">Version</th>
-              <th scope="col">Platform</th>
-              <th scope="col">
-                <button type="button" class="catalog-th-sort" data-sort-key="released">
-                  Released
-                </button>
-              </th>
-              <th scope="col">SHA-256</th>
-              <th scope="col">Download</th>
-              <th scope="col">Play</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
-    </div>
+  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
+    <p>
+      Redirecting to <a href="../index.html?category=apps" style="color: #6eb5ff">Catalog (apps)</a>…
+    </p>
     <script>
-      window.__STUFF_CATALOG_BASE__ =
-        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
-      window.__STUFF_PAGE_SECTION__ = "apps";
+      (function () {
+        var p = new URLSearchParams(window.location.search);
+        p.set("category", "apps");
+        var qs = p.toString();
+        window.location.replace("../index.html" + (qs ? "?" + qs : "") + window.location.hash);
+      })();
     </script>
-    <script src="../catalog.js"></script>
   </body>
 </html>

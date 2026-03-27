@@ -3,16 +3,48 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Redirect — nicapotato</title>
-    <meta http-equiv="refresh" content="0; url=games/index.html" />
-    <link rel="canonical" href="games/index.html" />
+    <title>Catalog — nicapotato</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
-  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
-    <p>
-      Redirecting to <a href="games/index.html" style="color: #6eb5ff">Games</a>…
-    </p>
+  <body>
+    <div class="wrap wrap--catalog">
+      <header>
+        <div class="catalog-header-top">
+          <h1>Catalog</h1>
+        </div>
+      </header>
+      <div id="status" class="banner" hidden></div>
+      <div id="catalog-toolbar" class="catalog-toolbar" hidden></div>
+      <div class="table-scroll">
+        <table class="catalog-table">
+          <thead>
+            <tr>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="title">
+                  Software
+                </button>
+              </th>
+              <th scope="col">Version</th>
+              <th scope="col">Platform</th>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="released">
+                  Released
+                </button>
+              </th>
+              <th scope="col">SHA-256</th>
+              <th scope="col">Download</th>
+              <th scope="col">Play</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
     <script>
-      window.location.replace("games/index.html" + window.location.search + window.location.hash);
+      window.__STUFF_CATALOG_BASE__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
+      window.__STUFF_CATALOG_UNIFIED__ = true;
     </script>
+    <script src="catalog.js"></script>
   </body>
 </html>

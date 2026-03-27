@@ -1,5 +1,6 @@
 (function () {
   var CATALOG_BASE = window.__STUFF_CATALOG_BASE__;
+  var UNIFIED_CATALOG = window.__STUFF_CATALOG_UNIFIED__ === true;
   var PAGE_SECTION = window.__STUFF_PAGE_SECTION__ || "games";
   if (!CATALOG_BASE) {
     console.error("catalog.js: set window.__STUFF_CATALOG_BASE__ before loading");
@@ -13,9 +14,13 @@
   var toolbarEl = document.getElementById("catalog-toolbar");
   var catalogPlatformOrder = ["linux", "wasm", "web", "macos", "windows"];
   var uiPlatformOrder = ["linux", "web", "macos", "windows"];
+  var MATURITY_VALUES = ["released", "prototype"];
   var activeFilterPlatforms = new Set();
   var activeFilterMaturities = new Set();
+  var activeFilterCategories = new Set();
+  var searchQuery = "";
   var catalogSortState = { key: null, dir: 1 };
+  var urlWriteSuppressed = false;
 
   var PLATFORM_SVG = {
     linux:
@@ -58,8 +63,9 @@
     }
   }
 
-  function playHref(gameKey, version, maturity) {
-    var u = new URL(maturity + "/play.html", window.location.href);
+  /** Play page lives at {category}/{maturity}/play.html relative to site root. */
+  function playHref(category, gameKey, version, maturity) {
+    var u = new URL(category + "/" + maturity + "/play.html", window.location.href);
     u.searchParams.set("game", gameKey);
     u.searchParams.set("version", version);
     return u.pathname + u.search + u.hash;
@@ -168,7 +174,7 @@
   }
 
   function rowItemKey(tr) {
-    return tr.dataset.gameKey + "\0" + tr.dataset.maturity;
+    return tr.dataset.category + "\0" + tr.dataset.gameKey + "\0" + tr.dataset.maturity;
   }
 
   function defaultSortDir(key) {
@@ -189,9 +195,13 @@
       c = ma < mb ? -1 : ma > mb ? 1 : 0;
     }
     if (c !== 0) return dir * c;
-    return (trA.dataset.gameKey + "\0" + trA.dataset.maturity).localeCompare(
-      trB.dataset.gameKey + "\0" + trB.dataset.maturity
-    );
+    return (
+      trA.dataset.category +
+      "\0" +
+      trA.dataset.gameKey +
+      "\0" +
+      trA.dataset.maturity
+    ).localeCompare(trB.dataset.category + "\0" + trB.dataset.gameKey + "\0" + trB.dataset.maturity);
   }
 
   function applyCatalogSort() {
@@ -236,9 +246,109 @@
     syncSortHeaderButtons();
   }
 
+  /** URL: maturity, category, platform (comma-separated or repeated), q (title search). Omit maturity → default released only. */
+  function parseListParam(sp, key) {
+    var raw = sp.getAll(key);
+    var out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var parts = String(raw[i]).split(",");
+      for (var j = 0; j < parts.length; j++) {
+        var s = parts[j].trim();
+        if (s) out.push(s);
+      }
+    }
+    return out;
+  }
+
+  function readFiltersFromUrl() {
+    var sp = new URLSearchParams(window.location.search);
+
+    activeFilterMaturities.clear();
+    if (!sp.has("maturity")) {
+      activeFilterMaturities.add("released");
+    } else {
+      var mv = parseListParam(sp, "maturity");
+      var lower = mv.map(function (m) {
+        return m.toLowerCase();
+      });
+      if (lower.indexOf("all") >= 0) {
+        activeFilterMaturities.add("released");
+        activeFilterMaturities.add("prototype");
+      } else {
+        for (var mi = 0; mi < MATURITY_VALUES.length; mi++) {
+          var t = MATURITY_VALUES[mi];
+          if (lower.indexOf(t) >= 0) activeFilterMaturities.add(t);
+        }
+      }
+      if (activeFilterMaturities.size === 0) activeFilterMaturities.add("released");
+    }
+
+    activeFilterCategories.clear();
+    if (UNIFIED_CATALOG) {
+      var cv = parseListParam(sp, "category");
+      for (var ci = 0; ci < cv.length; ci++) {
+        var c = cv[ci].toLowerCase();
+        if (c === "games" || c === "apps") activeFilterCategories.add(c);
+      }
+    }
+
+    activeFilterPlatforms.clear();
+    var pv = parseListParam(sp, "platform");
+    for (var pi = 0; pi < pv.length; pi++) {
+      var p = pv[pi].toLowerCase();
+      if (uiPlatformOrder.indexOf(p) >= 0) activeFilterPlatforms.add(p);
+    }
+
+    searchQuery = (sp.get("q") || "").trim();
+  }
+
+  function writeFiltersToUrl() {
+    if (urlWriteSuppressed) return;
+    var sp = new URLSearchParams(window.location.search);
+    ["maturity", "category", "platform", "q"].forEach(function (k) {
+      sp.delete(k);
+    });
+
+    var defaultMaturity =
+      activeFilterMaturities.size === 1 && activeFilterMaturities.has("released");
+    if (!defaultMaturity) {
+      var mlist = [];
+      if (activeFilterMaturities.has("released")) mlist.push("released");
+      if (activeFilterMaturities.has("prototype")) mlist.push("prototype");
+      if (mlist.length) sp.set("maturity", mlist.join(","));
+    }
+
+    if (UNIFIED_CATALOG && activeFilterCategories.size > 0) {
+      var clist = [];
+      if (activeFilterCategories.has("games")) clist.push("games");
+      if (activeFilterCategories.has("apps")) clist.push("apps");
+      if (clist.length) sp.set("category", clist.join(","));
+    }
+
+    if (activeFilterPlatforms.size > 0) {
+      var plist = [];
+      for (var pi = 0; pi < uiPlatformOrder.length; pi++) {
+        var plat = uiPlatformOrder[pi];
+        if (activeFilterPlatforms.has(plat)) plist.push(plat);
+      }
+      if (plist.length) sp.set("platform", plist.join(","));
+    }
+
+    if (searchQuery) sp.set("q", searchQuery);
+
+    var qs = sp.toString();
+    var url = window.location.pathname + (qs ? "?" + qs : "") + window.location.hash;
+    if (url !== window.location.pathname + window.location.search + window.location.hash) {
+      history.replaceState(null, "", url);
+    }
+  }
+
   function applyRowFilters() {
     var platOn = activeFilterPlatforms.size > 0;
     var matOn = activeFilterMaturities.size > 0;
+    var catOn = activeFilterCategories.size > 0;
+    var q = searchQuery.toLowerCase();
+    var qOn = q.length > 0;
     var rows = rowsEl.querySelectorAll("tr.catalog-row");
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
@@ -256,7 +366,14 @@
       }
       var okMat = true;
       if (matOn) okMat = activeFilterMaturities.has(row.dataset.maturity);
-      row.hidden = !(okPlat && okMat);
+      var okCat = true;
+      if (catOn) okCat = activeFilterCategories.has(row.dataset.category);
+      var okQ = true;
+      if (qOn) {
+        var title = (row.dataset.sortTitle || "").toLowerCase();
+        okQ = title.indexOf(q) >= 0;
+      }
+      row.hidden = !(okPlat && okMat && okCat && okQ);
     }
   }
 
@@ -274,14 +391,24 @@
       var mid = mb.getAttribute("data-mat");
       mb.setAttribute("aria-pressed", activeFilterMaturities.has(mid) ? "true" : "false");
     }
+    var catBtns = toolbarEl.querySelectorAll("button.cat-filter");
+    for (var ci = 0; ci < catBtns.length; ci++) {
+      var cb = catBtns[ci];
+      var cid = cb.getAttribute("data-cat");
+      cb.setAttribute("aria-pressed", activeFilterCategories.has(cid) ? "true" : "false");
+    }
   }
+
+  var searchDebounceTimer = null;
+  var searchInputEl = null;
 
   function mountCatalogToolbar() {
     if (!toolbarEl) return;
-    activeFilterPlatforms.clear();
-    activeFilterMaturities.clear();
     toolbarEl.innerHTML = "";
     toolbarEl.hidden = false;
+
+    var rowWrap = document.createElement("div");
+    rowWrap.className = "catalog-toolbar-row";
 
     var left = document.createElement("div");
     left.className = "catalog-toolbar-left";
@@ -318,6 +445,7 @@
           else activeFilterPlatforms.add(plat);
           syncFilterButtonPressedStates();
           applyRowFilters();
+          writeFiltersToUrl();
         });
 
         platGroup.appendChild(btn);
@@ -327,8 +455,44 @@
     left.appendChild(platLabel);
     left.appendChild(platGroup);
 
-    var right = document.createElement("div");
-    right.className = "catalog-toolbar-right";
+    var center = document.createElement("div");
+    center.className = "catalog-toolbar-center";
+
+    if (UNIFIED_CATALOG) {
+      var catLabel = document.createElement("span");
+      catLabel.className = "catalog-toolbar-label";
+      catLabel.textContent = "Category";
+
+      var catGroup = document.createElement("div");
+      catGroup.className = "catalog-toolbar-toggles";
+      catGroup.setAttribute("role", "group");
+      catGroup.setAttribute("aria-label", "Filter games vs apps");
+
+      [["games", "Games"], ["apps", "Apps"]].forEach(function (pair) {
+        var cid = pair[0];
+        var clab = pair[1];
+        (function (catId, text) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cat-filter";
+          btn.setAttribute("data-cat", catId);
+          btn.setAttribute("aria-pressed", "false");
+          btn.title = "Toggle filter: " + text;
+          btn.textContent = text;
+          btn.addEventListener("click", function () {
+            if (activeFilterCategories.has(catId)) activeFilterCategories.delete(catId);
+            else activeFilterCategories.add(catId);
+            syncFilterButtonPressedStates();
+            applyRowFilters();
+            writeFiltersToUrl();
+          });
+          catGroup.appendChild(btn);
+        })(cid, clab);
+      });
+
+      center.appendChild(catLabel);
+      center.appendChild(catGroup);
+    }
 
     var matLabel = document.createElement("span");
     matLabel.className = "catalog-toolbar-label";
@@ -353,20 +517,49 @@
         btn.addEventListener("click", function () {
           if (activeFilterMaturities.has(maturity)) activeFilterMaturities.delete(maturity);
           else activeFilterMaturities.add(maturity);
+          if (activeFilterMaturities.size === 0) activeFilterMaturities.add("released");
           syncFilterButtonPressedStates();
           applyRowFilters();
+          writeFiltersToUrl();
         });
         matGroup.appendChild(btn);
       })(mat, label);
     });
 
-    right.appendChild(matLabel);
-    right.appendChild(matGroup);
+    center.appendChild(matLabel);
+    center.appendChild(matGroup);
 
-    toolbarEl.appendChild(left);
-    toolbarEl.appendChild(right);
+    var searchWrap = document.createElement("div");
+    searchWrap.className = "catalog-toolbar-search";
+    var searchLabel = document.createElement("label");
+    searchLabel.className = "catalog-toolbar-label";
+    searchLabel.setAttribute("for", "catalog-search-input");
+    searchLabel.textContent = "Search";
+    searchInputEl = document.createElement("input");
+    searchInputEl.type = "search";
+    searchInputEl.id = "catalog-search-input";
+    searchInputEl.className = "catalog-search-input";
+    searchInputEl.setAttribute("autocomplete", "off");
+    searchInputEl.setAttribute("placeholder", "Filter by title…");
+    searchInputEl.value = searchQuery;
+    searchInputEl.addEventListener("input", function () {
+      var v = searchInputEl.value;
+      if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(function () {
+        searchQuery = v.trim();
+        applyRowFilters();
+        writeFiltersToUrl();
+      }, 200);
+    });
 
-    activeFilterMaturities.add("released");
+    searchWrap.appendChild(searchLabel);
+    searchWrap.appendChild(searchInputEl);
+
+    rowWrap.appendChild(left);
+    rowWrap.appendChild(center);
+    rowWrap.appendChild(searchWrap);
+
+    toolbarEl.appendChild(rowWrap);
     syncFilterButtonPressedStates();
   }
 
@@ -407,6 +600,7 @@
 
     var gameKey = tr.dataset.gameKey;
     var maturity = tr.dataset.maturity;
+    var category = tr.dataset.category;
     var versionSel = tr.querySelector(".js-version");
     var platformSel = tr.querySelector(".js-platform");
     var ver = versionSel.value;
@@ -450,7 +644,7 @@
     var playA = tr.querySelector(".js-play");
     var playDash = tr.querySelector(".js-play-dash");
     if (hasPlayable(info, plat)) {
-      playA.href = playHref(gameKey, ver, maturity);
+      playA.href = playHref(category, gameKey, ver, maturity);
       playA.hidden = false;
       playDash.hidden = true;
     } else {
@@ -485,57 +679,86 @@
   }
 
   function emptyMessage() {
+    if (UNIFIED_CATALOG) {
+      return "No software in catalog yet. Publish games or apps with AWS OIDC configured.";
+    }
     if (PAGE_SECTION === "apps") {
       return "No apps in catalog yet. Publish apps (e.g. SpacetimeDB Chat workflow) with AWS OIDC configured.";
     }
     return "No game builds in catalog yet. Run game CI (non-PR) with AWS OIDC configured.";
   }
 
+  function collectIntoRows(doc, maturity, category, rows) {
+    if (!doc) return;
+    var rootKey = category === "apps" ? "apps" : "games";
+    var bucket = doc[rootKey] || {};
+    var gameKeys = Object.keys(bucket);
+    for (var gi = 0; gi < gameKeys.length; gi++) {
+      var gameKey = gameKeys[gi];
+      var g = bucket[gameKey] || {};
+      var name = g.display_name || gameKey;
+      var versions = g.versions || {};
+      var verKeys = sortVersionsDesc(
+        Object.keys(versions).filter(function (vk) {
+          return versionHasZip(versions[vk]);
+        })
+      );
+      if (verKeys.length === 0) continue;
+      rows.push({
+        category: category,
+        gameKey: gameKey,
+        maturity: maturity,
+        g: g,
+        name: name,
+        verKeys: verKeys,
+      });
+    }
+  }
+
   async function load() {
+    readFiltersFromUrl();
     var base = catalogBaseTrimmed();
-    var releasedUrl = base + "/" + PAGE_SECTION + "/released/catalog.json";
-    var prototypeUrl = base + "/" + PAGE_SECTION + "/prototype/catalog.json";
-
-    var releasedDoc = await fetchCatalogJson(releasedUrl);
-    var prototypeDoc = await fetchCatalogJson(prototypeUrl);
-
-    if (!releasedDoc && !prototypeDoc) {
-      showStatus("Nothing Available", true);
-      return;
-    }
-
     var rows = [];
-    function collect(doc, maturity) {
-      if (!doc) return;
-      var bucket = doc[ROOT_KEY] || {};
-      var gameKeys = Object.keys(bucket);
-      for (var gi = 0; gi < gameKeys.length; gi++) {
-        var gameKey = gameKeys[gi];
-        var g = bucket[gameKey] || {};
-        var name = g.display_name || gameKey;
-        var versions = g.versions || {};
-        var verKeys = sortVersionsDesc(
-          Object.keys(versions).filter(function (vk) {
-            return versionHasZip(versions[vk]);
-          })
-        );
-        if (verKeys.length === 0) continue;
-        rows.push({
-          gameKey: gameKey,
-          maturity: maturity,
-          g: g,
-          name: name,
-          verKeys: verKeys,
-        });
-      }
-    }
 
-    collect(releasedDoc, "released");
-    collect(prototypeDoc, "prototype");
+    if (UNIFIED_CATALOG) {
+      var tuples = [
+        [base + "/games/released/catalog.json", "released", "games"],
+        [base + "/games/prototype/catalog.json", "prototype", "games"],
+        [base + "/apps/released/catalog.json", "released", "apps"],
+        [base + "/apps/prototype/catalog.json", "prototype", "apps"],
+      ];
+      var docs = await Promise.all(
+        tuples.map(function (t) {
+          return fetchCatalogJson(t[0]);
+        })
+      );
+      var anyDoc = false;
+      for (var di = 0; di < docs.length; di++) {
+        if (docs[di]) anyDoc = true;
+        collectIntoRows(docs[di], tuples[di][1], tuples[di][2], rows);
+      }
+      if (!anyDoc) {
+        showStatus("Nothing Available", true);
+        return;
+      }
+    } else {
+      var releasedDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/released/catalog.json");
+      var prototypeDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/prototype/catalog.json");
+
+      if (!releasedDoc && !prototypeDoc) {
+        showStatus("Nothing Available", true);
+        return;
+      }
+
+      var cat = PAGE_SECTION === "apps" ? "apps" : "games";
+      collectIntoRows(releasedDoc, "released", cat, rows);
+      collectIntoRows(prototypeDoc, "prototype", cat, rows);
+    }
 
     rows.sort(function (a, b) {
       var c = a.name.localeCompare(b.name);
       if (c !== 0) return c;
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
       if (a.maturity === b.maturity) return 0;
       return a.maturity === "released" ? -1 : 1;
     });
@@ -548,7 +771,7 @@
     var itemsByKey = Object.create(null);
     for (var ri = 0; ri < rows.length; ri++) {
       var r = rows[ri];
-      itemsByKey[r.gameKey + "\0" + r.maturity] = r.g;
+      itemsByKey[r.category + "\0" + r.gameKey + "\0" + r.maturity] = r.g;
     }
 
     statusEl.hidden = true;
@@ -560,6 +783,7 @@
       var item = rows[rj];
       var tr = document.createElement("tr");
       tr.className = "catalog-row";
+      tr.dataset.category = item.category;
       tr.dataset.gameKey = item.gameKey;
       tr.dataset.maturity = item.maturity;
       tr.dataset.sortTitle = item.name;
@@ -609,6 +833,16 @@
     rowsEl.appendChild(frag);
     mountCatalogSort();
     applyRowFilters();
+    writeFiltersToUrl();
+
+    window.addEventListener("popstate", function () {
+      urlWriteSuppressed = true;
+      readFiltersFromUrl();
+      if (searchInputEl) searchInputEl.value = searchQuery;
+      syncFilterButtonPressedStates();
+      applyRowFilters();
+      urlWriteSuppressed = false;
+    });
 
     rowsEl.addEventListener("change", function (ev) {
       var t = ev.target;

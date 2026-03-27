@@ -3,17 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Moved — nicapotato</title>
-    <meta http-equiv="refresh" content="0; url=../games/index.html" />
+    <title>Redirect — nicapotato</title>
+    <meta http-equiv="refresh" content="0; url=../index.html?maturity=prototype" />
   </head>
   <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
     <p>
-      Prototype games are listed under
-      <a href="../games/index.html" style="color: #6eb5ff">Games</a>
+      Prototype builds are listed in the
+      <a href="../index.html?maturity=prototype" style="color: #6eb5ff">catalog</a>
       (use the Prototype channel filter).
     </p>
     <script>
-      window.location.replace("../games/index.html" + window.location.search + window.location.hash);
+      (function () {
+        var p = new URLSearchParams(window.location.search);
+        if (!p.has("maturity")) p.set("maturity", "prototype");
+        var qs = p.toString();
+        window.location.replace("../index.html" + (qs ? "?" + qs : "") + window.location.hash);
+      })();
     </script>
   </body>
 </html>

@@ -121,11 +121,6 @@ table.catalog-table td.cell-platform {
 }
 
 .catalog-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
   margin-bottom: 1rem;
   padding: 0.65rem 0.75rem;
   border-radius: 8px;
@@ -133,16 +128,56 @@ table.catalog-table td.cell-platform {
   background: var(--surface);
 }
 
+.catalog-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  width: 100%;
+}
+
 .catalog-toolbar-left,
-.catalog-toolbar-right {
+.catalog-toolbar-center,
+.catalog-toolbar-search {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
 }
 
-.catalog-toolbar-right {
-  margin-left: auto;
+.catalog-toolbar-search {
+  flex: 1 1 12rem;
+  min-width: min(100%, 10rem);
+  justify-content: flex-end;
+}
+
+.catalog-toolbar-search .catalog-toolbar-label {
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.catalog-search-input {
+  font: inherit;
+  font-size: 0.8125rem;
+  min-width: 8rem;
+  max-width: 22rem;
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.catalog-search-input::placeholder {
+  color: var(--muted);
+}
+
+.catalog-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(110, 181, 255, 0.2);
 }
 
 .catalog-toolbar-label {
@@ -213,6 +248,32 @@ button.mat-filter:hover {
 }
 
 button.mat-filter[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(110, 181, 255, 0.12);
+}
+
+button.cat-filter {
+  font: inherit;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+button.cat-filter:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+button.cat-filter[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(110, 181, 255, 0.12);
