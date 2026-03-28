@@ -335,9 +335,18 @@
     activeFilterCategories.clear();
     if (UNIFIED_CATALOG) {
       var cv = parseListParam(sp, "category");
-      for (var ci = 0; ci < cv.length; ci++) {
-        var c = cv[ci].toLowerCase();
-        if (c === "games" || c === "apps") activeFilterCategories.add(c);
+      if (cv.length === 0) {
+        activeFilterCategories.add("games");
+        activeFilterCategories.add("apps");
+      } else {
+        for (var ci = 0; ci < cv.length; ci++) {
+          var c = cv[ci].toLowerCase();
+          if (c === "games" || c === "apps") activeFilterCategories.add(c);
+        }
+        if (activeFilterCategories.size === 0) {
+          activeFilterCategories.add("games");
+          activeFilterCategories.add("apps");
+        }
       }
     }
 
@@ -346,6 +355,11 @@
     for (var pi = 0; pi < pv.length; pi++) {
       var p = pv[pi].toLowerCase();
       if (uiPlatformOrder.indexOf(p) >= 0) activeFilterPlatforms.add(p);
+    }
+    if (activeFilterPlatforms.size === 0) {
+      for (var pj = 0; pj < uiPlatformOrder.length; pj++) {
+        activeFilterPlatforms.add(uiPlatformOrder[pj]);
+      }
     }
 
     searchQuery = (sp.get("q") || "").trim();
@@ -368,17 +382,29 @@
       if (mlist.length) sp.set("maturity", mlist.join(","));
     }
 
-    if (UNIFIED_CATALOG && activeFilterCategories.size > 0) {
-      var clist = [];
-      if (activeFilterCategories.has("games")) clist.push("games");
-      if (activeFilterCategories.has("apps")) clist.push("apps");
-      if (clist.length) sp.set("category", clist.join(","));
+    if (UNIFIED_CATALOG) {
+      var defaultCat =
+        activeFilterCategories.size === 2 &&
+        activeFilterCategories.has("games") &&
+        activeFilterCategories.has("apps");
+      if (!defaultCat && activeFilterCategories.size > 0) {
+        var clist = [];
+        if (activeFilterCategories.has("games")) clist.push("games");
+        if (activeFilterCategories.has("apps")) clist.push("apps");
+        if (clist.length) sp.set("category", clist.join(","));
+      }
     }
 
-    if (activeFilterPlatforms.size > 0) {
+    var allPlatsSelected =
+      uiPlatformOrder.length > 0 &&
+      activeFilterPlatforms.size === uiPlatformOrder.length &&
+      uiPlatformOrder.every(function (p) {
+        return activeFilterPlatforms.has(p);
+      });
+    if (!allPlatsSelected && activeFilterPlatforms.size > 0) {
       var plist = [];
-      for (var pi = 0; pi < uiPlatformOrder.length; pi++) {
-        var plat = uiPlatformOrder[pi];
+      for (var pix = 0; pix < uiPlatformOrder.length; pix++) {
+        var plat = uiPlatformOrder[pix];
         if (activeFilterPlatforms.has(plat)) plist.push(plat);
       }
       if (plist.length) sp.set("platform", plist.join(","));
