@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirect — nicapotato</title>
+    <meta http-equiv="refresh" content="0; url=../index.html?maturity=quickstart" />
+  </head>
+  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
+    <p>
+      Quickstart builds are listed in the
+      <a href="../index.html?maturity=quickstart" style="color: #6eb5ff">catalog</a>
+      (use the Quickstart channel filter).
+    </p>
+    <script>
+      (function () {
+        var p = new URLSearchParams(window.location.search);
+        if (!p.has("maturity")) p.set("maturity", "quickstart");
+        var qs = p.toString();
+        window.location.replace("../index.html" + (qs ? "?" + qs : "") + window.location.hash);
+      })();
+    </script>
+  </body>
+</html>

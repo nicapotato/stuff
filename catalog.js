@@ -14,7 +14,14 @@
   var toolbarEl = document.getElementById("catalog-toolbar");
   var catalogPlatformOrder = ["linux", "wasm", "web", "macos", "windows"];
   var uiPlatformOrder = ["linux", "web", "macos", "windows"];
-  var MATURITY_VALUES = ["released", "prototype"];
+  var MATURITY_VALUES = ["released", "prototype", "quickstart"];
+
+  function maturityRank(m) {
+    if (m === "released") return 0;
+    if (m === "prototype") return 1;
+    if (m === "quickstart") return 2;
+    return 3;
+  }
   var activeFilterPlatforms = new Set();
   var activeFilterMaturities = new Set();
   var activeFilterCategories = new Set();
@@ -195,13 +202,11 @@
       c = ma < mb ? -1 : ma > mb ? 1 : 0;
     }
     if (c !== 0) return dir * c;
-    return (
-      trA.dataset.category +
-      "\0" +
-      trA.dataset.gameKey +
-      "\0" +
-      trA.dataset.maturity
-    ).localeCompare(trB.dataset.category + "\0" + trB.dataset.gameKey + "\0" + trB.dataset.maturity);
+    var ca = trA.dataset.category.localeCompare(trB.dataset.category);
+    if (ca !== 0) return ca;
+    var ck = trA.dataset.gameKey.localeCompare(trB.dataset.gameKey);
+    if (ck !== 0) return ck;
+    return maturityRank(trA.dataset.maturity) - maturityRank(trB.dataset.maturity);
   }
 
   function applyCatalogSort() {
@@ -274,6 +279,7 @@
       if (lower.indexOf("all") >= 0) {
         activeFilterMaturities.add("released");
         activeFilterMaturities.add("prototype");
+        activeFilterMaturities.add("quickstart");
       } else {
         for (var mi = 0; mi < MATURITY_VALUES.length; mi++) {
           var t = MATURITY_VALUES[mi];
@@ -315,6 +321,7 @@
       var mlist = [];
       if (activeFilterMaturities.has("released")) mlist.push("released");
       if (activeFilterMaturities.has("prototype")) mlist.push("prototype");
+      if (activeFilterMaturities.has("quickstart")) mlist.push("quickstart");
       if (mlist.length) sp.set("maturity", mlist.join(","));
     }
 
@@ -501,9 +508,13 @@
     var matGroup = document.createElement("div");
     matGroup.className = "catalog-toolbar-toggles";
     matGroup.setAttribute("role", "group");
-    matGroup.setAttribute("aria-label", "Filter released vs prototype");
+    matGroup.setAttribute("aria-label", "Filter released, prototype, or quickstart");
 
-    [["released", "Released"], ["prototype", "Prototype"]].forEach(function (pair) {
+    [
+      ["released", "Released"],
+      ["prototype", "Prototype"],
+      ["quickstart", "Quickstart"],
+    ].forEach(function (pair) {
       var mat = pair[0];
       var label = pair[1];
       (function (maturity, text) {
@@ -724,8 +735,10 @@
       var tuples = [
         [base + "/games/released/catalog.json", "released", "games"],
         [base + "/games/prototype/catalog.json", "prototype", "games"],
+        [base + "/games/quickstart/catalog.json", "quickstart", "games"],
         [base + "/apps/released/catalog.json", "released", "apps"],
         [base + "/apps/prototype/catalog.json", "prototype", "apps"],
+        [base + "/apps/quickstart/catalog.json", "quickstart", "apps"],
       ];
       var docs = await Promise.all(
         tuples.map(function (t) {
@@ -744,8 +757,9 @@
     } else {
       var releasedDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/released/catalog.json");
       var prototypeDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/prototype/catalog.json");
+      var quickstartDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/quickstart/catalog.json");
 
-      if (!releasedDoc && !prototypeDoc) {
+      if (!releasedDoc && !prototypeDoc && !quickstartDoc) {
         showStatus("Nothing Available", true);
         return;
       }
@@ -753,14 +767,14 @@
       var cat = PAGE_SECTION === "apps" ? "apps" : "games";
       collectIntoRows(releasedDoc, "released", cat, rows);
       collectIntoRows(prototypeDoc, "prototype", cat, rows);
+      collectIntoRows(quickstartDoc, "quickstart", cat, rows);
     }
 
     rows.sort(function (a, b) {
       var c = a.name.localeCompare(b.name);
       if (c !== 0) return c;
       if (a.category !== b.category) return a.category.localeCompare(b.category);
-      if (a.maturity === b.maturity) return 0;
-      return a.maturity === "released" ? -1 : 1;
+      return maturityRank(a.maturity) - maturityRank(b.maturity);
     });
 
     if (rows.length === 0) {
