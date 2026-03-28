@@ -223,6 +223,57 @@
       .replace(/height="20"/, 'height="16"');
   }
 
+  /** Bundle name for Terminal xattr (catalog may set macos_app_bundle / app_bundle_name on platform or game). */
+  function macosAppBundleName(g, info, gameKey) {
+    if (info && info.macos_app_bundle) return String(info.macos_app_bundle).trim();
+    if (info && info.app_bundle_name) return String(info.app_bundle_name).trim();
+    if (g && g.macos_app_bundle) return String(g.macos_app_bundle).trim();
+    return String(gameKey || "").trim() + ".app";
+  }
+
+  /** Single-line shell command: xattr -cr &lt;path-to-.app&gt; */
+  function macosXattrCommandLine(bundleName) {
+    var b = String(bundleName);
+    if (/[^a-zA-Z0-9._-]/.test(b)) {
+      return "xattr -cr " + "'" + b.replace(/'/g, "'\\''") + "'";
+    }
+    return "xattr -cr " + b;
+  }
+
+  function buildMacInstallHtml(bundleName) {
+    var cmd = macosXattrCommandLine(bundleName);
+    var bn = escapeHtml(bundleName);
+    return (
+      '<div class="mac-install-inner">' +
+      '<p class="mac-install-why">' +
+      "macOS may block this download because it is not signed with an Apple Developer ID (Gatekeeper quarantine). " +
+      "That is expected for independent builds. The command below clears quarantine so the app can open. " +
+      "Only run it for software you trust." +
+      "</p>" +
+      '<p class="mac-install-steps">' +
+      "Unzip the archive, then in Terminal run <code>cd</code> to the folder that contains " +
+      "<strong>" +
+      bn +
+      "</strong> " +
+      "(for example <code>~/Downloads</code> or a subfolder after unzipping). Then run:" +
+      "</p>" +
+      '<pre class="mac-install-cmd"><code>' +
+      escapeHtml(cmd) +
+      "</code></pre>" +
+      '<p class="mac-install-hint">' +
+      "Alternatively, pass a full path to the bundle: " +
+      "<code>" +
+      escapeHtml("xattr -cr ~/Downloads/" + bundleName) +
+      "</code> " +
+      "(change <code>~/Downloads</code> or the filename if yours differs)." +
+      "</p>" +
+      '<button type="button" class="btn btn--sm js-mac-copy-cmd" data-command="' +
+      escapeAttr(cmd) +
+      '">Copy command</button>' +
+      "</div>"
+    );
+  }
+
   function rowItemKey(tr) {
     return tr.dataset.category + "\0" + tr.dataset.gameKey + "\0" + tr.dataset.maturity;
   }
@@ -726,6 +777,7 @@
 
     var zipA = tr.querySelector(".js-zip");
     var zipIcon = tr.querySelector(".js-zip-icon");
+    var macEl = tr.querySelector(".js-mac-install");
     if (info.zip_url) {
       zipA.href = info.zip_url;
       zipA.hidden = false;
@@ -739,6 +791,17 @@
       zipA.hidden = true;
       if (zipIcon) zipIcon.innerHTML = "";
       zipA.removeAttribute("aria-label");
+    }
+
+    if (macEl) {
+      if (plat === "macos" && info.zip_url) {
+        var bundleName = macosAppBundleName(g, info, gameKey);
+        macEl.innerHTML = buildMacInstallHtml(bundleName);
+        macEl.hidden = false;
+      } else {
+        macEl.innerHTML = "";
+        macEl.hidden = true;
+      }
     }
 
     var playA = tr.querySelector(".js-play");
@@ -943,10 +1006,12 @@
         '" class="sha-full js-sha-full">—</code>' +
         "</div></td>" +
         '<td class="cell-zip">' +
+        '<div class="cell-zip-row">' +
         '<a class="js-zip zip-link" href="#" download rel="noopener noreferrer">' +
         '<span class="zip-link-icon js-zip-icon" aria-hidden="true"></span>' +
         '<span class="zip-link-text">ZIP</span>' +
-        "</a></td>" +
+        "</a></div>" +
+        '<div class="mac-install js-mac-install" hidden></div></td>' +
         '<td class="cell-play"><a class="play-link js-play" href="#" hidden rel="noopener noreferrer">Play in browser</a><span class="js-play-dash">—</span></td>';
 
       frag.appendChild(tr);
@@ -996,6 +1061,35 @@
       var expanded = cell.classList.toggle("sha-expanded");
       tbtn.setAttribute("aria-expanded", expanded ? "true" : "false");
       tbtn.textContent = expanded ? "Hide SHA" : "Show SHA";
+    });
+
+    rowsEl.addEventListener("click", function (ev) {
+      var copyBtn = ev.target.closest("button.js-mac-copy-cmd");
+      if (!copyBtn) return;
+      var cmd = copyBtn.getAttribute("data-command");
+      if (!cmd) return;
+      var label = copyBtn.textContent;
+      function showCopied() {
+        copyBtn.textContent = "Copied";
+        setTimeout(function () {
+          copyBtn.textContent = label;
+        }, 2000);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(showCopied).catch(function () {});
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = cmd;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          if (document.execCommand("copy")) showCopied();
+        } catch (e) {}
+        document.body.removeChild(ta);
+      }
     });
   }
 

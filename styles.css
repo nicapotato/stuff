@@ -544,8 +544,71 @@ tr:hover td {
 }
 
 .cell-zip {
-  vertical-align: middle;
+  vertical-align: top;
+  min-width: 7rem;
+}
+
+.cell-zip-row {
   white-space: nowrap;
+}
+
+.mac-install {
+  margin-top: 0.65rem;
+  max-width: 20rem;
+  white-space: normal;
+}
+
+.mac-install[hidden] {
+  display: none !important;
+}
+
+.mac-install-inner {
+  padding: 0.5rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.mac-install-why,
+.mac-install-steps,
+.mac-install-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin: 0 0 0.45rem;
+  line-height: 1.45;
+}
+
+.mac-install-hint {
+  margin-bottom: 0.5rem;
+}
+
+.mac-install-steps code,
+.mac-install-hint code {
+  font-size: 0.85em;
+  color: var(--text);
+}
+
+.mac-install-cmd {
+  margin: 0 0 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.mac-install-cmd code {
+  font: inherit;
+  color: var(--accent);
+}
+
+.mac-install .btn--sm {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
 }
 
 .zip-link {
