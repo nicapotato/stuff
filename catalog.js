@@ -854,11 +854,13 @@
 
       tr.innerHTML =
         '<td class="cell-title">' +
-        recordTagsHtml(item.category, item.maturity) +
         '<div class="cell-title-name">' +
         escapeHtml(item.name) +
         "</div>" +
         buildIconRow() +
+        "</td>" +
+        '<td class="cell-tags">' +
+        recordTagsHtml(item.category, item.maturity) +
         "</td>" +
         '<td class="cell-version">' +
         '<div class="catalog-inline">' +
@@ -878,13 +880,15 @@
         "</td>" +
         '<td class="js-released">—</td>' +
         '<td class="sha cell-sha">' +
+        '<div class="cell-sha-inner">' +
         '<button type="button" class="btn sha-toggle js-sha-toggle" aria-expanded="false" aria-controls="' +
         "stuff-sha-code-" +
         rj +
         '" hidden>Show SHA</button>' +
         '<code id="stuff-sha-code-' +
         rj +
-        '" class="sha-full js-sha-full">—</code></td>' +
+        '" class="sha-full js-sha-full">—</code>' +
+        "</div></td>" +
         '<td><a class="js-zip" href="#" download rel="noopener">ZIP</a></td>' +
         '<td class="cell-play"><a class="play-link js-play" href="#" hidden>Play in browser</a><span class="js-play-dash">—</span></td>';
 
