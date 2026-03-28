@@ -496,6 +496,36 @@ tr:hover td {
   word-break: break-all;
 }
 
+/* Below medium: hide long SHA until user taps Show SHA */
+.cell-sha {
+  vertical-align: top;
+}
+
+.cell-sha .sha-toggle {
+  margin-bottom: 0.35rem;
+}
+
+@media (min-width: 768px) {
+  .cell-sha .sha-toggle {
+    display: none !important;
+  }
+
+  .cell-sha .js-sha-full {
+    display: block !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .cell-sha:not(.sha-expanded) .js-sha-full {
+    display: none !important;
+  }
+
+  .cell-sha.sha-expanded .js-sha-full {
+    display: block !important;
+    margin-top: 0.25rem;
+  }
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

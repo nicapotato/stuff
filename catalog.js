@@ -641,7 +641,19 @@
 
     tr.dataset.sortReleased = String(releasedAtMs(vData.released_at));
     tr.querySelector(".js-released").textContent = formatReleased(released);
-    tr.querySelector(".js-sha-full").textContent = sha;
+    var shaEl = tr.querySelector(".js-sha-full");
+    var shaToggle = tr.querySelector(".js-sha-toggle");
+    shaEl.textContent = sha;
+    if (shaToggle) {
+      var hasSha = sha && sha !== "—";
+      shaToggle.hidden = !hasSha;
+      shaToggle.setAttribute("aria-hidden", !hasSha ? "true" : "false");
+      if (!hasSha) {
+        tr.querySelector(".cell-sha").classList.remove("sha-expanded");
+        shaToggle.setAttribute("aria-expanded", "false");
+        shaToggle.textContent = "Show SHA";
+      }
+    }
 
     var zipA = tr.querySelector(".js-zip");
     if (info.zip_url) {
@@ -836,7 +848,14 @@
         "</div>" +
         "</td>" +
         '<td class="js-released">—</td>' +
-        '<td class="sha"><code class="sha-full js-sha-full">—</code></td>' +
+        '<td class="sha cell-sha">' +
+        '<button type="button" class="btn sha-toggle js-sha-toggle" aria-expanded="false" aria-controls="' +
+        "stuff-sha-code-" +
+        rj +
+        '" hidden>Show SHA</button>' +
+        '<code id="stuff-sha-code-' +
+        rj +
+        '" class="sha-full js-sha-full">—</code></td>' +
         '<td><a class="js-zip" href="#" download rel="noopener">ZIP</a></td>' +
         '<td class="cell-play"><a class="play-link js-play" href="#" hidden>Play in browser</a><span class="js-play-dash">—</span></td>';
 
@@ -877,6 +896,16 @@
       if (pick == null || platformSel.value === pick) return;
       platformSel.value = pick;
       updateRow(row, itemsByKey);
+    });
+
+    rowsEl.addEventListener("click", function (ev) {
+      var tbtn = ev.target.closest("button.js-sha-toggle");
+      if (!tbtn || tbtn.hidden) return;
+      var cell = tbtn.closest(".cell-sha");
+      if (!cell) return;
+      var expanded = cell.classList.toggle("sha-expanded");
+      tbtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      tbtn.textContent = expanded ? "Hide SHA" : "Show SHA";
     });
   }
 
