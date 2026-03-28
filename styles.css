@@ -543,6 +543,39 @@ tr:hover td {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.cell-zip {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.zip-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.zip-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+  color: var(--accent);
+}
+
+.zip-link:hover .zip-link-icon {
+  color: var(--accent-hover);
+}
+
+.zip-link-icon svg {
+  display: block;
+}
+
+.zip-link-text {
+  font-weight: 500;
+}
+
 .sha {
   font-family: var(--mono);
   font-size: 0.75rem;

@@ -208,6 +208,21 @@
     return PLATFORM_SVG[p].replace(/width="20"/, 'width="18"').replace(/height="20"/, 'height="18"');
   }
 
+  /** Maps catalog platform key (wasm/web/linux/…) to UI icon slot (web for wasm/web). */
+  function uiSlotFromCatalogPlatform(catalogPlatform) {
+    if (catalogPlatform === "wasm" || catalogPlatform === "web") return "web";
+    return catalogPlatform;
+  }
+
+  function zipLinkIconSvg(catalogPlatform) {
+    var slot = uiSlotFromCatalogPlatform(catalogPlatform);
+    var raw = PLATFORM_SVG[slot];
+    if (!raw) return "";
+    return raw
+      .replace(/width="20"/, 'width="16"')
+      .replace(/height="20"/, 'height="16"');
+  }
+
   function rowItemKey(tr) {
     return tr.dataset.category + "\0" + tr.dataset.gameKey + "\0" + tr.dataset.maturity;
   }
@@ -684,22 +699,34 @@
     }
 
     var zipA = tr.querySelector(".js-zip");
+    var zipIcon = tr.querySelector(".js-zip-icon");
     if (info.zip_url) {
       zipA.href = info.zip_url;
       zipA.hidden = false;
+      if (zipIcon) zipIcon.innerHTML = zipLinkIconSvg(plat);
+      zipA.setAttribute(
+        "aria-label",
+        "Download ZIP (" + String(plat).toUpperCase() + ")"
+      );
     } else {
       zipA.removeAttribute("href");
       zipA.hidden = true;
+      if (zipIcon) zipIcon.innerHTML = "";
+      zipA.removeAttribute("aria-label");
     }
 
     var playA = tr.querySelector(".js-play");
     var playDash = tr.querySelector(".js-play-dash");
     if (hasPlayable(info, plat)) {
       playA.href = playHref(category, gameKey, ver, maturity);
+      playA.target = "_blank";
+      playA.rel = "noopener noreferrer";
       playA.hidden = false;
       playDash.hidden = true;
     } else {
       playA.removeAttribute("href");
+      playA.removeAttribute("target");
+      playA.removeAttribute("rel");
       playA.hidden = true;
       playDash.hidden = false;
     }
@@ -889,8 +916,12 @@
         rj +
         '" class="sha-full js-sha-full">—</code>' +
         "</div></td>" +
-        '<td><a class="js-zip" href="#" download rel="noopener">ZIP</a></td>' +
-        '<td class="cell-play"><a class="play-link js-play" href="#" hidden>Play in browser</a><span class="js-play-dash">—</span></td>';
+        '<td class="cell-zip">' +
+        '<a class="js-zip zip-link" href="#" download rel="noopener noreferrer">' +
+        '<span class="zip-link-icon js-zip-icon" aria-hidden="true"></span>' +
+        '<span class="zip-link-text">ZIP</span>' +
+        "</a></td>" +
+        '<td class="cell-play"><a class="play-link js-play" href="#" hidden rel="noopener noreferrer">Play in browser</a><span class="js-play-dash">—</span></td>';
 
       frag.appendChild(tr);
       updateRow(tr, itemsByKey);
