@@ -89,6 +89,34 @@
     return escapeHtml(s).replace(/'/g, "&#39;");
   }
 
+  function recordCategoryLabel(cat) {
+    return cat === "apps" ? "Apps" : "Games";
+  }
+
+  function recordChannelLabel(mat) {
+    if (mat === "released") return "Released";
+    if (mat === "prototype") return "Prototype";
+    if (mat === "quickstart") return "Quickstart";
+    return String(mat);
+  }
+
+  function recordTagsHtml(category, maturity) {
+    return (
+      '<div class="record-tags" aria-label="Category and channel">' +
+      '<span class="record-tag record-tag--category record-tag--' +
+      escapeAttr(category) +
+      '">' +
+      escapeHtml(recordCategoryLabel(category)) +
+      "</span>" +
+      '<span class="record-tag record-tag--channel record-tag--' +
+      escapeAttr(maturity) +
+      '">' +
+      escapeHtml(recordChannelLabel(maturity)) +
+      "</span>" +
+      "</div>"
+    );
+  }
+
   function versionHasZip(v) {
     var pl = (v && v.platforms) || {};
     for (var i = 0; i < catalogPlatformOrder.length; i++) {
@@ -826,6 +854,7 @@
 
       tr.innerHTML =
         '<td class="cell-title">' +
+        recordTagsHtml(item.category, item.maturity) +
         '<div class="cell-title-name">' +
         escapeHtml(item.name) +
         "</div>" +

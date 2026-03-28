@@ -110,6 +110,58 @@ table.catalog-table td.cell-platform {
   vertical-align: top;
 }
 
+.record-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.record-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--tag-border, var(--border));
+  color: var(--tag-fg, var(--muted));
+  background: var(--tag-bg, transparent);
+  line-height: 1.2;
+}
+
+.record-tag--category.record-tag--games {
+  --tag-border: rgba(110, 181, 255, 0.55);
+  --tag-fg: #a8d4ff;
+  --tag-bg: rgba(110, 181, 255, 0.1);
+}
+
+.record-tag--category.record-tag--apps {
+  --tag-border: rgba(196, 165, 245, 0.55);
+  --tag-fg: #d4c4f7;
+  --tag-bg: rgba(165, 130, 235, 0.12);
+}
+
+.record-tag--channel.record-tag--released {
+  --tag-border: rgba(110, 210, 150, 0.5);
+  --tag-fg: #9ee6bc;
+  --tag-bg: rgba(80, 200, 130, 0.1);
+}
+
+.record-tag--channel.record-tag--prototype {
+  --tag-border: rgba(245, 190, 120, 0.55);
+  --tag-fg: #f5d4a8;
+  --tag-bg: rgba(230, 160, 80, 0.12);
+}
+
+.record-tag--channel.record-tag--quickstart {
+  --tag-border: rgba(110, 220, 220, 0.5);
+  --tag-fg: #9cf0f0;
+  --tag-bg: rgba(60, 200, 200, 0.1);
+}
+
 .cell-title-name {
   font-weight: 500;
   margin-bottom: 0.35rem;
