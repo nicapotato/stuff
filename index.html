@@ -15,6 +15,17 @@
       </header>
       <div id="status" class="banner" hidden></div>
       <div id="catalog-toolbar" class="catalog-toolbar" hidden></div>
+      <div id="mac-quarantine-notice" class="mac-quarantine-bubble" hidden role="note">
+        <p>
+          <strong>macOS (Gatekeeper)</strong>: These ZIPs are not signed with an Apple Developer ID, so
+          macOS may quarantine them after download. That is normal for independent builds. After
+          unzipping, open Terminal, <code>cd</code> to the folder that contains the
+          <code>.app</code> bundle, then run the <code>xattr -cr</code> command shown on each row
+          below (it removes quarantine for that bundle). Only run it for software you trust. If the
+          app is not in the current directory, pass a full path instead (for example
+          <code>xattr -cr ~/Downloads/MyGame.app</code>).
+        </p>
+      </div>
       <div class="table-scroll">
         <table class="catalog-table">
           <thead>

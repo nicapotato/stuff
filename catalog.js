@@ -12,6 +12,7 @@
   var statusEl = document.getElementById("status");
   var rowsEl = document.getElementById("rows");
   var toolbarEl = document.getElementById("catalog-toolbar");
+  var macBubbleEl = document.getElementById("mac-quarantine-notice");
   var catalogPlatformOrder = ["linux", "wasm", "web", "macos", "windows"];
   var uiPlatformOrder = ["linux", "web", "macos", "windows"];
   var MATURITY_VALUES = ["released", "prototype", "quickstart"];
@@ -240,38 +241,38 @@
     return "xattr -cr " + b;
   }
 
-  function buildMacInstallHtml(bundleName) {
+  /** Per-row: de-quarantine command + Copy (long explanation lives in #mac-quarantine-notice). */
+  function buildMacRowCopyHtml(bundleName) {
     var cmd = macosXattrCommandLine(bundleName);
-    var bn = escapeHtml(bundleName);
     return (
-      '<div class="mac-install-inner">' +
-      '<p class="mac-install-why">' +
-      "macOS may block this download because it is not signed with an Apple Developer ID (Gatekeeper quarantine). " +
-      "That is expected for independent builds. The command below clears quarantine so the app can open. " +
-      "Only run it for software you trust." +
-      "</p>" +
-      '<p class="mac-install-steps">' +
-      "Unzip the archive, then in Terminal run <code>cd</code> to the folder that contains " +
-      "<strong>" +
-      bn +
-      "</strong> " +
-      "(for example <code>~/Downloads</code> or a subfolder after unzipping). Then run:" +
-      "</p>" +
+      '<div class="mac-install-inner mac-install-inner--compact">' +
+      '<div class="mac-install-cmd-row">' +
       '<pre class="mac-install-cmd"><code>' +
       escapeHtml(cmd) +
       "</code></pre>" +
-      '<p class="mac-install-hint">' +
-      "Alternatively, pass a full path to the bundle: " +
-      "<code>" +
-      escapeHtml("xattr -cr ~/Downloads/" + bundleName) +
-      "</code> " +
-      "(change <code>~/Downloads</code> or the filename if yours differs)." +
-      "</p>" +
       '<button type="button" class="btn btn--sm js-mac-copy-cmd" data-command="' +
       escapeAttr(cmd) +
-      '">Copy command</button>' +
+      '">Copy</button>' +
+      "</div>" +
       "</div>"
     );
+  }
+
+  function syncMacQuarantineBubble() {
+    if (!macBubbleEl || !rowsEl) return;
+    var rows = rowsEl.querySelectorAll("tr.catalog-row");
+    var show = false;
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (row.hidden) continue;
+      var ps = row.querySelector(".js-platform");
+      var za = row.querySelector(".js-zip");
+      if (ps && ps.value === "macos" && za && !za.hidden) {
+        show = true;
+        break;
+      }
+    }
+    macBubbleEl.hidden = !show;
   }
 
   function rowItemKey(tr) {
@@ -502,6 +503,7 @@
       }
       row.hidden = !(okPlat && okMat && okCat && okQ);
     }
+    syncMacQuarantineBubble();
   }
 
   function syncFilterButtonPressedStates() {
@@ -796,13 +798,15 @@
     if (macEl) {
       if (plat === "macos" && info.zip_url) {
         var bundleName = macosAppBundleName(g, info, gameKey);
-        macEl.innerHTML = buildMacInstallHtml(bundleName);
+        macEl.innerHTML = buildMacRowCopyHtml(bundleName);
         macEl.hidden = false;
       } else {
         macEl.innerHTML = "";
         macEl.hidden = true;
       }
     }
+
+    syncMacQuarantineBubble();
 
     var playA = tr.querySelector(".js-play");
     var playDash = tr.querySelector(".js-play-dash");

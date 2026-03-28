@@ -562,40 +562,72 @@ tr:hover td {
   display: none !important;
 }
 
+.mac-quarantine-bubble {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(180, 130, 0, 0.45);
+  background: linear-gradient(165deg, #fef9c3 0%, #fde68a 100%);
+  color: #1c1917;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+
+.mac-quarantine-bubble[hidden] {
+  display: none !important;
+}
+
+.mac-quarantine-bubble p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.mac-quarantine-bubble code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  color: #451a03;
+}
+
 .mac-install-inner {
-  padding: 0.5rem 0.55rem;
+  padding: 0.45rem 0.5rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.2);
 }
 
-.mac-install-why,
-.mac-install-steps,
-.mac-install-hint {
-  font-size: 0.72rem;
-  color: var(--muted);
-  margin: 0 0 0.45rem;
-  line-height: 1.45;
+.mac-install-inner--compact {
+  padding: 0.35rem 0.45rem;
 }
 
-.mac-install-hint {
-  margin-bottom: 0.5rem;
+.mac-install-cmd-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
-.mac-install-steps code,
-.mac-install-hint code {
-  font-size: 0.85em;
-  color: var(--text);
+.mac-install-cmd-row .mac-install-cmd {
+  flex: 1 1 8rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.mac-install-cmd-row .btn {
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .mac-install-cmd {
-  margin: 0 0 0.5rem;
-  padding: 0.4rem 0.5rem;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
   border-radius: 6px;
   background: var(--bg);
   border: 1px solid var(--border);
   font-family: var(--mono);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
