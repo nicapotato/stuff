@@ -1,4 +1,10 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
 :root {
+  --banner-load-fail-bg: #9a1515;
+  --banner-load-fail-border: #4a0505;
+  --banner-load-fail-text: #ffffff;
+  --banner-load-fail-detail: #ffcccc;
   --bg: #0f1114;
   --surface: #1a1e24;
   --border: #2d3540;
@@ -459,9 +465,44 @@ h1 {
   margin-bottom: 1.25rem;
   font-size: 0.9rem;
 }
-.banner.error {
+.banner.error:not(.banner--load-fail) {
   border-color: #8b4049;
   color: #f0b4bc;
+}
+
+/* Web / catalog load failures — loud red, pixel “ERROR”, darker border */
+.banner.banner--load-fail {
+  background: var(--banner-load-fail-bg);
+  border: 4px solid var(--banner-load-fail-border);
+  border-radius: 6px;
+  color: var(--banner-load-fail-text);
+  padding: 1rem 1.25rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.banner-error-title {
+  font-family: "Press Start 2P", ui-monospace, "Courier New", monospace;
+  font-size: clamp(0.85rem, 2.5vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.85rem;
+  text-transform: uppercase;
+  color: var(--banner-load-fail-text);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.banner-error-detail {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--banner-load-fail-detail);
+}
+
+body.play-page .play-page-status.banner--load-fail {
+  max-width: min(42rem, calc(100% - 2rem));
 }
 
 .table-scroll {

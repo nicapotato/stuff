@@ -30,11 +30,43 @@
   var frameHost = document.getElementById("frameHost");
   var iframe = document.getElementById("game");
 
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function fail(msg) {
     document.title = "Cannot play — nicapotato";
     statusEl.hidden = false;
-    statusEl.textContent = msg;
+    statusEl.classList.add("error", "banner--load-fail");
+    statusEl.setAttribute("role", "alert");
+    statusEl.innerHTML =
+      '<div class="banner-error-title">ERROR</div>' +
+      '<div class="banner-error-detail">' +
+      escapeHtml(msg) +
+      "</div>";
     frameHost.style.display = "none";
+  }
+
+  /**
+   * When CORS allows it, HEAD verifies the asset exists before embedding.
+   * If HEAD is blocked or unsupported (405), we still try the iframe.
+   */
+  async function verifyPlayUrlHead(url) {
+    try {
+      var res = await fetch(url, {
+        method: "HEAD",
+        mode: "cors",
+        cache: "no-store",
+      });
+      if (res.status === 405 || res.status === 501) return null;
+      return res.ok;
+    } catch (e) {
+      return null;
+    }
   }
 
   if (!gameKey || !version) {
@@ -101,10 +133,29 @@
       return;
     }
 
+    var playUrl = play.play_url;
+    var headResult = await verifyPlayUrlHead(playUrl);
+    if (headResult === false) {
+      fail(
+        "This web build failed to load (server returned an error). Check the link or try again later."
+      );
+      return;
+    }
+
     document.title =
       (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
     iframe.style.width = "100%";
     iframe.style.height = "100%";
-    iframe.src = play.play_url;
+
+    iframe.addEventListener(
+      "error",
+      function onIframeError() {
+        iframe.removeEventListener("error", onIframeError);
+        fail("The embedded page failed to load in the browser.");
+      },
+      { once: true }
+    );
+
+    iframe.src = playUrl;
   })();
 })();

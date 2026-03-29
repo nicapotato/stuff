@@ -47,8 +47,17 @@
 
   function showStatus(msg, isError) {
     statusEl.hidden = false;
-    statusEl.textContent = msg;
     statusEl.classList.toggle("error", !!isError);
+    statusEl.classList.toggle("banner--load-fail", !!isError);
+    if (isError) {
+      statusEl.innerHTML =
+        '<div class="banner-error-title">ERROR</div>' +
+        '<div class="banner-error-detail">' +
+        escapeHtml(msg) +
+        "</div>";
+    } else {
+      statusEl.textContent = msg;
+    }
   }
 
   function releasedAtMs(raw) {
