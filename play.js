@@ -29,6 +29,22 @@
   var statusEl = document.getElementById("status");
   var frameHost = document.getElementById("frameHost");
   var iframe = document.getElementById("game");
+  var playMetaEl = document.getElementById("playMeta");
+  var playMetaMaturityEl = document.getElementById("playMetaMaturity");
+  var playMetaVersionEl = document.getElementById("playMetaVersion");
+
+  function maturityDisplayLabel(m) {
+    if (m === "released") return "Released";
+    if (m === "prototype") return "Prototype";
+    if (m === "quickstart") return "Quickstart";
+    return String(m || "");
+  }
+
+  function setPlayMetaVisible(show) {
+    if (!playMetaEl) return;
+    playMetaEl.hidden = !show;
+    playMetaEl.setAttribute("aria-hidden", show ? "false" : "true");
+  }
 
   function escapeHtml(s) {
     return String(s)
@@ -39,6 +55,7 @@
   }
 
   function fail(msg) {
+    setPlayMetaVisible(false);
     document.title = "Cannot play — nicapotato";
     statusEl.hidden = false;
     statusEl.classList.add("error", "banner--load-fail");
@@ -146,6 +163,10 @@
       (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
     iframe.style.width = "100%";
     iframe.style.height = "100%";
+
+    if (playMetaMaturityEl) playMetaMaturityEl.textContent = maturityDisplayLabel(maturity);
+    if (playMetaVersionEl) playMetaVersionEl.textContent = resolvedVersion;
+    setPlayMetaVisible(true);
 
     iframe.addEventListener(
       "error",
