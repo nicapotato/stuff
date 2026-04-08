@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" class="play-page-root">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f1114" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Play — Cathulu Sweeper (PWA pilot)</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="../../styles.css" />
+    <!--
+      PWA pilot: shell + catalog fetches can be cached by the service worker.
+      The game iframe targets S3; offline play for the iframe bundle depends on
+      browser caching of that origin (parent SW does not control cross-origin iframe navigations).
+    -->
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.search);
+        if (!p.get("game") || !p.get("version")) {
+          var qs = new URLSearchParams({
+            game: "cathulusweeper",
+            version: "0.0.15-wasd-prototype",
+          });
+          history.replaceState(
+            null,
+            "",
+            location.pathname + "?" + qs.toString() + (location.hash || "")
+          );
+        }
+      })();
+    </script>
+  </head>
+  <body class="play-page">
+    <div id="status" class="banner error play-page-status" hidden></div>
+    <div id="frameHost" class="play-frame-wrap">
+      <div id="playMeta" class="play-meta" hidden aria-hidden="true">
+        <p class="play-meta__line" id="playMetaMaturity"></p>
+        <p class="play-meta__line" id="playMetaVersion"></p>
+      </div>
+      <iframe id="game" title="Game" allow="fullscreen" loading="lazy"></iframe>
+    </div>
+    <script>
+      window.__STUFF_CATALOG_BASE__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
+      window.__STUFF_PAGE_SECTION__ = "games";
+    </script>
+    <script src="../../play.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("/pwa/cathulusweeper/service-worker.js", {
+            scope: "/pwa/cathulusweeper/",
+          })
+          .catch(function (e) {
+            console.warn("PWA service worker registration failed:", e);
+          });
+      }
+    </script>
+  </body>
+</html>
