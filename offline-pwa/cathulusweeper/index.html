@@ -5,7 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0f1114" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Cathulu SW" />
     <title>Play — Cathulu Sweeper (PWA pilot)</title>
+    <!-- Tab + window: SVG first; PNG/ICO for older engines and install surfaces -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/offline-pwa/cathulusweeper/icon.svg"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="/offline-pwa/cathulusweeper/icon.png"
+    />
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="/offline-pwa/cathulusweeper/icon.ico"
+    />
+    <!-- Safari / iOS / macOS “Add to Home Screen” / dock shortcut -->
+    <link
+      rel="apple-touch-icon"
+      href="/offline-pwa/cathulusweeper/icon.png"
+    />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="../../styles.css" />
     <!--

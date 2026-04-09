@@ -1,5 +1,5 @@
 /* Pilot PWA: scoped to /offline-pwa/cathulusweeper/ — does not modify shared play.js or catalog. */
-var VERSION = "cathulusweeper-pwa-2";
+var VERSION = "cathulusweeper-pwa";
 var CACHE_SHELL = "cathulusweeper-shell-" + VERSION;
 var CACHE_RUNTIME = "cathulusweeper-runtime-" + VERSION;
 
@@ -12,6 +12,10 @@ var GAME_VERSION = "latest";
 
 var SHELL_PATHS = [
   "/offline-pwa/cathulusweeper/index.html",
+  "/offline-pwa/cathulusweeper/manifest.webmanifest",
+  "/offline-pwa/cathulusweeper/icon.svg",
+  "/offline-pwa/cathulusweeper/icon.png",
+  "/offline-pwa/cathulusweeper/icon.ico",
   "/styles.css",
   "/play.js",
 ];
