@@ -19,7 +19,7 @@
         if (!p.get("game") || !p.get("version")) {
           var qs = new URLSearchParams({
             game: "cathulusweeper",
-            version: "0.0.15-wasd-prototype",
+            version: "latest",
           });
           history.replaceState(
             null,
@@ -48,8 +48,8 @@
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
-          .register("/pwa/cathulusweeper/service-worker.js", {
-            scope: "/pwa/cathulusweeper/",
+          .register("/offline-pwa/cathulusweeper/service-worker.js", {
+            scope: "/offline-pwa/cathulusweeper/",
           })
           .catch(function (e) {
             console.warn("PWA service worker registration failed:", e);

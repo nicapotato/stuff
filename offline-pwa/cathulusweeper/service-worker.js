@@ -1,5 +1,5 @@
-/* Pilot PWA: scoped to /pwa/cathulusweeper/ — does not modify shared play.js or catalog. */
-var VERSION = "cathulusweeper-pwa-1";
+/* Pilot PWA: scoped to /offline-pwa/cathulusweeper/ — does not modify shared play.js or catalog. */
+var VERSION = "cathulusweeper-pwa-2";
 var CACHE_SHELL = "cathulusweeper-shell-" + VERSION;
 var CACHE_RUNTIME = "cathulusweeper-runtime-" + VERSION;
 
@@ -7,10 +7,11 @@ var CATALOG_BASE =
   "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
 var CATALOG_URL = CATALOG_BASE + "/games/released/catalog.json";
 var GAME_KEY = "cathulusweeper";
-var GAME_VERSION = "0.0.15-wasd-prototype";
+/** Matches play.js: resolves to highest catalog version when "latest". */
+var GAME_VERSION = "latest";
 
 var SHELL_PATHS = [
-  "/pwa/cathulusweeper/index.html",
+  "/offline-pwa/cathulusweeper/index.html",
   "/styles.css",
   "/play.js",
 ];
@@ -20,6 +21,26 @@ function pickPlayPlatform(platforms) {
   if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
   if (platforms.web && platforms.web.play_url) return platforms.web;
   return null;
+}
+
+function highestVersionKey(versionsObj) {
+  var keys = Object.keys(versionsObj || {});
+  if (!keys.length) return null;
+  keys.sort(function (a, b) {
+    return b.localeCompare(a, undefined, { numeric: true });
+  });
+  return keys[0];
+}
+
+function resolveVersionEntry(g) {
+  var versionsObj = g && g.versions;
+  if (!versionsObj) return null;
+  var key = GAME_VERSION;
+  if (String(GAME_VERSION).toLowerCase() === "latest") {
+    key = highestVersionKey(versionsObj);
+  }
+  if (!key) return null;
+  return versionsObj[key] || null;
 }
 
 self.addEventListener("install", function (event) {
@@ -39,7 +60,7 @@ self.addEventListener("install", function (event) {
         var catalog = await res.clone().json();
         var root = (catalog && catalog.games) || {};
         var g = root[GAME_KEY];
-        var v = g && g.versions && g.versions[GAME_VERSION];
+        var v = resolveVersionEntry(g);
         var play = v && pickPlayPlatform(v.platforms);
         var playUrl = play && play.play_url;
         var runtime = await caches.open(CACHE_RUNTIME);
@@ -89,10 +110,10 @@ self.addEventListener("fetch", function (event) {
   if (url.origin === self.location.origin) {
     if (event.request.mode === "navigate") {
       var pathname = url.pathname.replace(/\/+$/, "") || "/";
-      if (pathname === "/pwa/cathulusweeper") {
+      if (pathname === "/offline-pwa/cathulusweeper") {
         event.respondWith(
           (async function () {
-            var cached = await caches.match("/pwa/cathulusweeper/index.html");
+            var cached = await caches.match("/offline-pwa/cathulusweeper/index.html");
             if (cached) return cached;
             return fetch(event.request);
           })()

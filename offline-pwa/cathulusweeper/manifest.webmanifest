@@ -1,0 +1,18 @@
+{
+  "name": "Cathulu Sweeper (PWA pilot)",
+  "short_name": "Cathulu SW",
+  "description": "Offline-capable pilot shell for Cathulu Sweeper (version: latest)",
+  "start_url": "/offline-pwa/cathulusweeper/index.html?game=cathulusweeper&version=latest",
+  "scope": "/offline-pwa/cathulusweeper/",
+  "display": "standalone",
+  "background_color": "#0f1114",
+  "theme_color": "#0f1114",
+  "icons": [
+    {
+      "src": "/offline-pwa/cathulusweeper/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
