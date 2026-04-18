@@ -352,6 +352,32 @@ button.cat-filter[aria-pressed="true"] {
   background: rgba(110, 181, 255, 0.12);
 }
 
+button.cpu-filter {
+  font: inherit;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+button.cpu-filter:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+button.cpu-filter[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(110, 181, 255, 0.12);
+}
+
 .catalog-inline {
   display: flex;
   flex-wrap: wrap;
