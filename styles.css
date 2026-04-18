@@ -846,21 +846,26 @@ body.play-page .play-frame-wrap {
   z-index: 0;
 }
 
-/* Maturity + version overlay (above embedded game) */
+/* Maturity + version overlay (bottom-left on embedded play page) */
 .play-meta {
   position: absolute;
-  top: 0.4rem;
+  bottom: 0.4rem;
   left: 0.4rem;
+  right: auto;
   z-index: 1;
   pointer-events: none;
-  font-size: 0.6875rem;
-  line-height: 1.3;
+  font-size: 0.34375rem;
+  line-height: 1.2;
   letter-spacing: 0.02em;
+  max-width: calc(100% - 0.8rem);
 }
 
 .play-meta__line {
   margin: 0;
   padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #fff;
   text-shadow:
     -1px -1px 0 #000,

@@ -30,8 +30,7 @@
   var frameHost = document.getElementById("frameHost");
   var iframe = document.getElementById("game");
   var playMetaEl = document.getElementById("playMeta");
-  var playMetaMaturityEl = document.getElementById("playMetaMaturity");
-  var playMetaVersionEl = document.getElementById("playMetaVersion");
+  var playMetaLineEl = document.getElementById("playMetaLine");
 
   function maturityDisplayLabel(m) {
     if (m === "released") return "Released";
@@ -164,8 +163,10 @@
     iframe.style.width = "100%";
     iframe.style.height = "100%";
 
-    if (playMetaMaturityEl) playMetaMaturityEl.textContent = maturityDisplayLabel(maturity);
-    if (playMetaVersionEl) playMetaVersionEl.textContent = resolvedVersion;
+    if (playMetaLineEl) {
+      playMetaLineEl.textContent =
+        maturityDisplayLabel(maturity) + " — " + resolvedVersion;
+    }
     setPlayMetaVisible(true);
 
     iframe.addEventListener(
