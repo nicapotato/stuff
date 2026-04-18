@@ -206,6 +206,10 @@ table.catalog-table td.cell-platform {
   width: 100%;
 }
 
+.catalog-toolbar-row--cpu {
+  margin-top: 0.5rem;
+}
+
 .catalog-toolbar-left,
 .catalog-toolbar-center,
 .catalog-toolbar-search {

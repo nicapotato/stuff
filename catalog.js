@@ -13,8 +13,22 @@
   var rowsEl = document.getElementById("rows");
   var toolbarEl = document.getElementById("catalog-toolbar");
   var macBubbleEl = document.getElementById("mac-quarantine-notice");
-  var catalogPlatformOrder = ["linux", "wasm", "web", "macos", "windows"];
+  /** Order for platform keys in catalog JSON (compound keys + legacy). */
+  var catalogPlatformOrder = [
+    "wasm",
+    "web",
+    "macos_arm64",
+    "macos_x86_64",
+    "macos",
+    "linux_x86_64",
+    "linux_arm64",
+    "linux",
+    "windows_x86_64",
+    "windows_arm64",
+    "windows",
+  ];
   var uiPlatformOrder = ["linux", "web", "macos", "windows"];
+  var CPU_ORDER = ["x86_64", "arm64"];
   var MATURITY_VALUES = ["released", "prototype", "quickstart"];
 
   function maturityRank(m) {
@@ -24,8 +38,11 @@
     return 3;
   }
   var activeFilterPlatforms = new Set();
+  var activeFilterCpus = new Set();
   var activeFilterMaturities = new Set();
   var activeFilterCategories = new Set();
+  /** Populated in load() for row filtering (platform + CPU). */
+  var catalogItemsByKey = null;
   var searchQuery = "";
   var catalogSortState = { key: null, dir: 1 };
   var urlWriteSuppressed = false;
@@ -110,6 +127,71 @@
     return String(mat);
   }
 
+  function platformHumanLabel(key) {
+    var labels = {
+      wasm: "Web (WASM)",
+      web: "Web",
+      macos_arm64: "macOS (arm64)",
+      macos_x86_64: "macOS (x86_64)",
+      macos: "macOS",
+      linux_x86_64: "Linux (x86_64)",
+      linux_arm64: "Linux (arm64)",
+      linux: "Linux",
+      windows_x86_64: "Windows (x86_64)",
+      windows_arm64: "Windows (arm64)",
+      windows: "Windows",
+    };
+    return labels[key] || key;
+  }
+
+  /** Maps catalog platform key to toolbar icon slot (web / macos / linux / windows). */
+  function uiSlotFromCatalogKey(k) {
+    if (k === "wasm" || k === "web") return "web";
+    if (String(k).indexOf("macos") === 0) return "macos";
+    if (String(k).indexOf("linux") === 0) return "linux";
+    if (String(k).indexOf("windows") === 0) return "windows";
+    return k;
+  }
+
+  /** Returns x86_64 | arm64 | null (null = legacy single-arch key or wasm). */
+  function cpuFromCatalogKey(k) {
+    if (k === "wasm" || k === "web") return null;
+    if (k === "macos" || k === "linux" || k === "windows") return null;
+    var s = String(k);
+    if (/_x86_64$/.test(s)) return "x86_64";
+    if (/_arm64$/.test(s)) return "arm64";
+    return null;
+  }
+
+  function artifactMatchesFilters(key) {
+    var slot = uiSlotFromCatalogKey(key);
+    if (!activeFilterPlatforms.has(slot)) return false;
+    if (key === "wasm" || key === "web") return true;
+    var cpu = cpuFromCatalogKey(key);
+    if (cpu === null) {
+      return activeFilterCpus.has("x86_64") || activeFilterCpus.has("arm64");
+    }
+    return activeFilterCpus.has(cpu);
+  }
+
+  function versionMatchesFilters(v) {
+    var pl = (v && v.platforms) || {};
+    for (var key in pl) {
+      if (!Object.prototype.hasOwnProperty.call(pl, key)) continue;
+      if (!pl[key].zip_url) continue;
+      if (artifactMatchesFilters(key)) return true;
+    }
+    return false;
+  }
+
+  function gameMatchesFilters(g, verKeys) {
+    var versions = (g && g.versions) || {};
+    for (var i = 0; i < verKeys.length; i++) {
+      if (versionMatchesFilters(versions[verKeys[i]])) return true;
+    }
+    return false;
+  }
+
   function recordTagsHtml(category, maturity) {
     return (
       '<div class="record-tags" aria-label="Category and channel">' +
@@ -149,6 +231,11 @@
       var p = catalogPlatformOrder[i];
       if (pl[p] && pl[p].zip_url) out.push(p);
     }
+    for (var extra in pl) {
+      if (!Object.prototype.hasOwnProperty.call(pl, extra)) continue;
+      if (out.indexOf(extra) >= 0) continue;
+      if (pl[extra] && pl[extra].zip_url) out.push(extra);
+    }
     return out;
   }
 
@@ -157,7 +244,10 @@
     for (var i = 0; i < rawList.length; i++) {
       var k = rawList[i];
       if (k === "wasm" || k === "web") seen.web = true;
-      else seen[k] = true;
+      else {
+        seen[k] = true;
+        seen[uiSlotFromCatalogKey(k)] = true;
+      }
     }
     var out = [];
     for (var j = 0; j < uiPlatformOrder.length; j++) {
@@ -178,18 +268,42 @@
     for (var k = 0; k < catalogPlatformOrder.length; k++) {
       if (seen[catalogPlatformOrder[k]]) raw.push(catalogPlatformOrder[k]);
     }
+    for (var key in seen) {
+      if (seen[key] && raw.indexOf(key) < 0) raw.push(key);
+    }
     return filterTagsFromCatalogPlatforms(raw);
   }
 
   function uiSlotHasCatalogZip(slot, catalogKeysWithZip) {
     if (slot === "web")
       return catalogKeysWithZip.indexOf("wasm") >= 0 || catalogKeysWithZip.indexOf("web") >= 0;
-    return catalogKeysWithZip.indexOf(slot) >= 0;
+    for (var i = 0; i < catalogKeysWithZip.length; i++) {
+      var k = catalogKeysWithZip[i];
+      if (k === slot) return true;
+      if (String(k).indexOf(slot + "_") === 0) return true;
+    }
+    return false;
   }
 
   function uiSlotMatchesPlatform(slot, selectedCatalogPlatform) {
     if (slot === "web")
       return selectedCatalogPlatform === "wasm" || selectedCatalogPlatform === "web";
+    if (slot === "macos") {
+      return (
+        selectedCatalogPlatform === "macos" || String(selectedCatalogPlatform).indexOf("macos_") === 0
+      );
+    }
+    if (slot === "linux") {
+      return (
+        selectedCatalogPlatform === "linux" || String(selectedCatalogPlatform).indexOf("linux_") === 0
+      );
+    }
+    if (slot === "windows") {
+      return (
+        selectedCatalogPlatform === "windows" ||
+        String(selectedCatalogPlatform).indexOf("windows_") === 0
+      );
+    }
     return selectedCatalogPlatform === slot;
   }
 
@@ -210,6 +324,17 @@
       if (curIdx >= 0) return webOpts[(curIdx + 1) % webOpts.length];
       return webOpts[0];
     }
+    var prefix = slot;
+    var prefer = [];
+    if (prefix === "macos") prefer = ["macos_arm64", "macos_x86_64", "macos"];
+    else if (prefix === "linux") prefer = ["linux_arm64", "linux_x86_64", "linux"];
+    else if (prefix === "windows") prefer = ["windows_arm64", "windows_x86_64", "windows"];
+    for (var pi = 0; pi < prefer.length; pi++) {
+      if (opts.indexOf(prefer[pi]) >= 0) return prefer[pi];
+    }
+    for (var oi = 0; oi < opts.length; oi++) {
+      if (String(opts[oi]).indexOf(prefix) === 0) return opts[oi];
+    }
     if (opts.indexOf(slot) >= 0) return slot;
     return null;
   }
@@ -220,8 +345,7 @@
 
   /** Maps catalog platform key (wasm/web/linux/…) to UI icon slot (web for wasm/web). */
   function uiSlotFromCatalogPlatform(catalogPlatform) {
-    if (catalogPlatform === "wasm" || catalogPlatform === "web") return "web";
-    return catalogPlatform;
+    return uiSlotFromCatalogKey(catalogPlatform);
   }
 
   function zipLinkIconSvg(catalogPlatform) {
@@ -276,7 +400,8 @@
       if (row.hidden) continue;
       var ps = row.querySelector(".js-platform");
       var za = row.querySelector(".js-zip");
-      if (ps && ps.value === "macos" && za && !za.hidden) {
+      var pv = ps ? String(ps.value) : "";
+      if (ps && pv.indexOf("macos") === 0 && za && !za.hidden) {
         show = true;
         break;
       }
@@ -423,13 +548,25 @@
       }
     }
 
+    activeFilterCpus.clear();
+    var cv = parseListParam(sp, "cpu");
+    for (var ci = 0; ci < cv.length; ci++) {
+      var c = cv[ci].toLowerCase();
+      if (c === "x86_64" || c === "arm64") activeFilterCpus.add(c);
+    }
+    if (activeFilterCpus.size === 0) {
+      for (var cj = 0; cj < CPU_ORDER.length; cj++) {
+        activeFilterCpus.add(CPU_ORDER[cj]);
+      }
+    }
+
     searchQuery = (sp.get("q") || "").trim();
   }
 
   function writeFiltersToUrl() {
     if (urlWriteSuppressed) return;
     var sp = new URLSearchParams(window.location.search);
-    ["maturity", "category", "platform", "q"].forEach(function (k) {
+    ["maturity", "category", "platform", "cpu", "q"].forEach(function (k) {
       sp.delete(k);
     });
 
@@ -471,6 +608,21 @@
       if (plist.length) sp.set("platform", plist.join(","));
     }
 
+    var allCpusSelected =
+      CPU_ORDER.length > 0 &&
+      activeFilterCpus.size === CPU_ORDER.length &&
+      CPU_ORDER.every(function (c) {
+        return activeFilterCpus.has(c);
+      });
+    if (!allCpusSelected && activeFilterCpus.size > 0) {
+      var clist = [];
+      for (var cix = 0; cix < CPU_ORDER.length; cix++) {
+        var cpu = CPU_ORDER[cix];
+        if (activeFilterCpus.has(cpu)) clist.push(cpu);
+      }
+      if (clist.length) sp.set("cpu", clist.join(","));
+    }
+
     if (searchQuery) sp.set("q", searchQuery);
 
     var qs = sp.toString();
@@ -482,6 +634,7 @@
 
   function applyRowFilters() {
     var platOn = activeFilterPlatforms.size > 0;
+    var cpuOn = activeFilterCpus.size > 0;
     var matOn = activeFilterMaturities.size > 0;
     var catOn = activeFilterCategories.size > 0;
     var q = searchQuery.toLowerCase();
@@ -489,16 +642,18 @@
     var rows = rowsEl.querySelectorAll("tr.catalog-row");
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
-      var okPlat = true;
-      if (platOn) {
-        var ups = (row.dataset.platformsUnion || "").split(",").filter(Boolean);
-        okPlat = false;
-        for (var j = 0; j < uiPlatformOrder.length; j++) {
-          var plat = uiPlatformOrder[j];
-          if (activeFilterPlatforms.has(plat) && ups.indexOf(plat) >= 0) {
-            okPlat = true;
-            break;
-          }
+      var okPlatCpu = true;
+      if (platOn || cpuOn) {
+        var g = catalogItemsByKey && catalogItemsByKey[rowItemKey(row)];
+        if (g) {
+          var verKeys = sortVersionsDesc(
+            Object.keys(g.versions || {}).filter(function (vk) {
+              return versionHasZip(g.versions[vk]);
+            })
+          );
+          okPlatCpu = gameMatchesFilters(g, verKeys);
+        } else {
+          okPlatCpu = false;
         }
       }
       var okMat = true;
@@ -510,7 +665,7 @@
         var title = (row.dataset.sortTitle || "").toLowerCase();
         okQ = title.indexOf(q) >= 0;
       }
-      row.hidden = !(okPlat && okMat && okCat && okQ);
+      row.hidden = !(okPlatCpu && okMat && okCat && okQ);
     }
     syncMacQuarantineBubble();
   }
@@ -534,6 +689,12 @@
       var cb = catBtns[ci];
       var cid = cb.getAttribute("data-cat");
       cb.setAttribute("aria-pressed", activeFilterCategories.has(cid) ? "true" : "false");
+    }
+    var cpuBtns = toolbarEl.querySelectorAll("button.cpu-filter");
+    for (var cbi = 0; cbi < cpuBtns.length; cbi++) {
+      var cbb = cpuBtns[cbi];
+      var cpuid = cbb.getAttribute("data-cpu");
+      cbb.setAttribute("aria-pressed", activeFilterCpus.has(cpuid) ? "true" : "false");
     }
   }
 
@@ -701,7 +862,45 @@
     rowWrap.appendChild(center);
     rowWrap.appendChild(searchWrap);
 
+    var rowCpu = document.createElement("div");
+    rowCpu.className = "catalog-toolbar-row catalog-toolbar-row--cpu";
+    var cpuRowLeft = document.createElement("div");
+    cpuRowLeft.className = "catalog-toolbar-left";
+    var cpuLabel = document.createElement("span");
+    cpuLabel.className = "catalog-toolbar-label";
+    cpuLabel.textContent = "CPU";
+    var cpuGroup = document.createElement("div");
+    cpuGroup.className = "catalog-toolbar-toggles";
+    cpuGroup.setAttribute("role", "group");
+    cpuGroup.setAttribute("aria-label", "Filter by CPU architecture");
+    for (var cpi = 0; cpi < CPU_ORDER.length; cpi++) {
+      (function (cpuId) {
+        var cbtn = document.createElement("button");
+        cbtn.type = "button";
+        cbtn.className = "cpu-filter";
+        cbtn.setAttribute("data-cpu", cpuId);
+        cbtn.setAttribute("aria-pressed", "false");
+        cbtn.title = "Toggle filter: " + cpuId;
+        cbtn.textContent = cpuId;
+        cbtn.addEventListener("click", function () {
+          if (activeFilterCpus.has(cpuId)) activeFilterCpus.delete(cpuId);
+          else activeFilterCpus.add(cpuId);
+          if (activeFilterCpus.size === 0) {
+            for (var cz = 0; cz < CPU_ORDER.length; cz++) activeFilterCpus.add(CPU_ORDER[cz]);
+          }
+          syncFilterButtonPressedStates();
+          applyRowFilters();
+          writeFiltersToUrl();
+        });
+        cpuGroup.appendChild(cbtn);
+      })(CPU_ORDER[cpi]);
+    }
+    cpuRowLeft.appendChild(cpuLabel);
+    cpuRowLeft.appendChild(cpuGroup);
+    rowCpu.appendChild(cpuRowLeft);
+
     toolbarEl.appendChild(rowWrap);
+    toolbarEl.appendChild(rowCpu);
     syncFilterButtonPressedStates();
   }
 
@@ -755,7 +954,7 @@
       var p = available[i];
       var opt = document.createElement("option");
       opt.value = p;
-      opt.textContent = p;
+      opt.textContent = platformHumanLabel(p);
       platformSel.appendChild(opt);
     }
 
@@ -793,10 +992,7 @@
       zipA.href = info.zip_url;
       zipA.hidden = false;
       if (zipIcon) zipIcon.innerHTML = zipLinkIconSvg(plat);
-      zipA.setAttribute(
-        "aria-label",
-        "Download ZIP (" + String(plat).toUpperCase() + ")"
-      );
+      zipA.setAttribute("aria-label", "Download ZIP (" + platformHumanLabel(plat) + ")");
     } else {
       zipA.removeAttribute("href");
       zipA.hidden = true;
@@ -805,7 +1001,7 @@
     }
 
     if (macEl) {
-      if (plat === "macos" && info.zip_url) {
+      if (String(plat).indexOf("macos") === 0 && info.zip_url) {
         var bundleName = macosAppBundleName(g, info, gameKey);
         macEl.innerHTML = buildMacRowCopyHtml(bundleName);
         macEl.hidden = false;
@@ -956,6 +1152,7 @@
       var r = rows[ri];
       itemsByKey[r.category + "\0" + r.gameKey + "\0" + r.maturity] = r.g;
     }
+    catalogItemsByKey = itemsByKey;
 
     statusEl.hidden = true;
     mountCatalogToolbar();
