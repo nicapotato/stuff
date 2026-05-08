@@ -178,6 +178,9 @@
       { once: true }
     );
 
+    // Permissions Policy: cross-origin embeds need delegation for getUserMedia (e.g. guitar tuner).
+    iframe.setAttribute("allow", "fullscreen; microphone");
+
     iframe.src = playUrl;
   })();
 })();
