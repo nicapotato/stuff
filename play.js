@@ -158,6 +158,16 @@
       return;
     }
 
+    // Games flagged top_level cannot run inside a cross-origin iframe:
+    // SharedArrayBuffer isolation (pthreads) and showDirectoryPicker (local
+    // library access) are both blocked there. Navigate the tab to the game.
+    if (play.top_level) {
+      document.title =
+        (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
+      window.location.replace(playUrl);
+      return;
+    }
+
     document.title =
       (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
     iframe.style.width = "100%";
