@@ -52,6 +52,15 @@ a:hover {
   margin: 0;
   flex: 1;
   min-width: min(100%, 10rem);
+  line-height: 0;
+}
+
+.catalog-title-img {
+  display: block;
+  width: auto;
+  height: 4.5rem;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .wrap--catalog header .sub {
@@ -742,10 +751,21 @@ tr:hover td {
   font-weight: 500;
 }
 
+/* Rendered inside the .zip-link flex anchor ("ZIP · 38.2 MB"). */
+.zip-size {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.zip-link:hover .zip-size {
+  color: inherit;
+}
+
 .sha {
   font-family: var(--mono);
   font-size: 0.75rem;
-  word-break: break-all;
 }
 
 .sha-full {
@@ -755,10 +775,8 @@ tr:hover td {
   color: inherit;
   background: transparent;
   padding: 0;
-  word-break: break-all;
 }
 
-/* Below medium: hide long SHA until user taps Show SHA */
 .cell-sha {
   vertical-align: top;
 }
@@ -787,25 +805,39 @@ tr:hover td {
   box-sizing: border-box;
 }
 
-@media (min-width: 768px) {
+/* Narrow / medium: keep one-line truncated SHA so rows stay short. */
+@media (max-width: 1199.98px) {
+  .cell-sha:not(.sha-expanded) .js-sha-full {
+    display: block;
+    max-width: 9ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: normal;
+  }
+
+  .cell-sha.sha-expanded .js-sha-full {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-all;
+    overflow: visible;
+  }
+}
+
+/* Wide: always show full hash; no toggle needed. */
+@media (min-width: 1200px) {
   .cell-sha .sha-toggle {
     display: none !important;
   }
 
   .cell-sha .js-sha-full {
     display: block !important;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .cell-sha:not(.sha-expanded) .js-sha-full {
-    display: none !important;
-  }
-
-  .cell-sha.sha-expanded .js-sha-full {
-    display: block !important;
-    width: 100%;
-    max-width: 100%;
+    max-width: none;
+    white-space: normal;
+    word-break: break-all;
+    overflow: visible;
   }
 }
 

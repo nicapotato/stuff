@@ -97,6 +97,20 @@
     }
   }
 
+  /** 38200000 -> "38.2 MB". Returns "" for missing/invalid input. */
+  function formatBytes(n) {
+    if (typeof n !== "number" || !isFinite(n) || n < 0) return "";
+    if (n < 1024) return n + " B";
+    var units = ["KB", "MB", "GB"];
+    var v = n;
+    var u = -1;
+    do {
+      v /= 1024;
+      u++;
+    } while (v >= 1024 && u < units.length - 1);
+    return (v >= 100 ? Math.round(v) : v.toFixed(1)) + " " + units[u];
+  }
+
   /** Play page lives at {category}/{maturity}/play.html relative to site root. */
   function playHref(category, gameKey, version, maturity) {
     var u = new URL(category + "/" + maturity + "/play.html", window.location.href);
@@ -133,13 +147,15 @@
       web: "Web",
       macos_arm64: "macOS (arm64)",
       macos_x86_64: "macOS (x86_64)",
-      macos: "macOS",
+      // Legacy bare key: every published bare-macos build came from arm64 runners.
+      macos: "macOS (arm64)",
       linux_x86_64: "Linux (x86_64)",
       linux_arm64: "Linux (arm64)",
       linux: "Linux",
       windows_x86_64: "Windows (x86_64)",
       windows_arm64: "Windows (arm64)",
-      windows: "Windows",
+      // Legacy bare key: every published Windows build was x86_64.
+      windows: "Windows (x86_64)",
     };
     return labels[key] || key;
   }
@@ -156,7 +172,11 @@
   /** Returns x86_64 | arm64 | null (null = legacy single-arch key or wasm). */
   function cpuFromCatalogKey(k) {
     if (k === "wasm" || k === "web") return null;
-    if (k === "macos" || k === "linux" || k === "windows") return null;
+    // Legacy bare keys map to the arch their CI runners used:
+    // windows-latest = x86_64, macos-latest = arm64.
+    if (k === "windows") return "x86_64";
+    if (k === "macos") return "arm64";
+    if (k === "linux") return null;
     var s = String(k);
     if (/_x86_64$/.test(s)) return "x86_64";
     if (/_arm64$/.test(s)) return "arm64";
@@ -235,6 +255,14 @@
       if (!Object.prototype.hasOwnProperty.call(pl, extra)) continue;
       if (out.indexOf(extra) >= 0) continue;
       if (pl[extra] && pl[extra].zip_url) out.push(extra);
+    }
+    // Legacy dedupe: old catalog entries may carry a bare key duplicating the
+    // compound one (same zip). Show only the arch-specific key.
+    if (out.indexOf("macos") >= 0 && out.indexOf("macos_arm64") >= 0) {
+      out.splice(out.indexOf("macos"), 1);
+    }
+    if (out.indexOf("windows") >= 0 && out.indexOf("windows_x86_64") >= 0) {
+      out.splice(out.indexOf("windows"), 1);
     }
     return out;
   }
@@ -414,7 +442,7 @@
   }
 
   function defaultSortDir(key) {
-    return key === "released" ? -1 : 1;
+    return key === "released" || key === "size" ? -1 : 1;
   }
 
   function compareCatalogRows(trA, trB) {
@@ -429,6 +457,10 @@
       var ma = parseInt(trA.dataset.sortReleased, 10) || 0;
       var mb = parseInt(trB.dataset.sortReleased, 10) || 0;
       c = ma < mb ? -1 : ma > mb ? 1 : 0;
+    } else if (key === "size") {
+      var sa = parseInt(trA.dataset.sortSize, 10) || 0;
+      var sb = parseInt(trB.dataset.sortSize, 10) || 0;
+      c = sa < sb ? -1 : sa > sb ? 1 : 0;
     }
     if (c !== 0) return dir * c;
     var ca = trA.dataset.category.localeCompare(trB.dataset.category);
@@ -987,6 +1019,7 @@
 
     var zipA = tr.querySelector(".js-zip");
     var zipIcon = tr.querySelector(".js-zip-icon");
+    var zipSizeEl = tr.querySelector(".js-zip-size");
     var macEl = tr.querySelector(".js-mac-install");
     if (info.zip_url) {
       zipA.href = info.zip_url;
@@ -999,6 +1032,14 @@
       if (zipIcon) zipIcon.innerHTML = "";
       zipA.removeAttribute("aria-label");
     }
+    var sizeText = info.zip_url ? formatBytes(info.size_bytes) : "";
+    if (zipSizeEl) {
+      zipSizeEl.textContent = sizeText === "" ? "" : "· " + sizeText;
+      zipSizeEl.hidden = sizeText === "";
+    }
+    tr.dataset.sortSize = String(
+      info.zip_url && typeof info.size_bytes === "number" ? info.size_bytes : 0
+    );
 
     if (macEl) {
       if (String(plat).indexOf("macos") === 0 && info.zip_url) {
@@ -1041,7 +1082,9 @@
       el.setAttribute("aria-pressed", avail && sel ? "true" : "false");
     }
 
-    if (catalogSortState.key === "released") applyCatalogSort();
+    if (catalogSortState.key === "released" || catalogSortState.key === "size") {
+      applyCatalogSort();
+    }
   }
 
   async function fetchCatalogJson(url) {
@@ -1168,12 +1211,15 @@
       tr.dataset.maturity = item.maturity;
       tr.dataset.sortTitle = item.name;
       tr.dataset.sortReleased = "0";
+      tr.dataset.sortSize = "0";
       tr.dataset.platformsUnion = platformsUnionForGame(item.g, item.verKeys).join(",");
 
       var verOptions = "";
       for (var vi = 0; vi < item.verKeys.length; vi++) {
         var vk = item.verKeys[vi];
-        verOptions += '<option value="' + escapeAttr(vk) + '">' + escapeHtml(vk) + "</option>";
+        // verKeys is sorted newest-first; flag the newest as LATEST (value stays bare).
+        var verLabel = vi === 0 ? vk + " — LATEST" : vk;
+        verOptions += '<option value="' + escapeAttr(vk) + '">' + escapeHtml(verLabel) + "</option>";
       }
       var vid = "stuff-ver-" + rj;
       var pid = "stuff-plat-" + rj;
@@ -1220,6 +1266,7 @@
         '<a class="js-zip zip-link" href="#" download rel="noopener noreferrer">' +
         '<span class="zip-link-icon js-zip-icon" aria-hidden="true"></span>' +
         '<span class="zip-link-text">ZIP</span>' +
+        '<span class="zip-size js-zip-size" hidden></span>' +
         "</a></div>" +
         '<div class="mac-install js-mac-install" hidden></div></td>' +
         '<td class="cell-play"><a class="play-link js-play" href="#" hidden rel="noopener noreferrer">Play in browser</a><span class="js-play-dash">—</span></td>';
