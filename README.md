@@ -1,6 +1,6 @@
 # stuff
 
-**Static catalog site** (vanilla JavaScript and CSS). The main page is a sortable **software catalog** table: titles, tags, versions, platforms, release dates, checksums, downloads, and play links. Supporting folders include `apps/`, `games/`, `prototype/`, `quickstart/`, and related assets.
+**Static stuff site** (vanilla JavaScript and CSS). The main page is a sortable **software** table: titles, tags, versions, platforms, release dates, checksums, downloads, and play links. Supporting folders include `apps/`, `games/`, `prototype/`, `quickstart/`, and related assets.
 
 ## User guide
 
