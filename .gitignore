@@ -1,3 +1,4 @@
 .DS_store
 # local backups made by scripts/backfill-catalog.sh
 scripts/.backfill-backup/
+.dev-catalog/

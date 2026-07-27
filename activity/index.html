@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Activity — Stuff</title>
+    <link rel="icon" type="image/png" href="/public/stuff-flavicon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="wrap wrap--activity">
+      <header class="stuff-title-header">
+        <h1 class="stuff-title-banner">
+          <span class="visually-hidden">Stuff</span>
+        </h1>
+      </header>
+
+      <p class="activity-lede">
+        Version releases over time. Each project is a color (hue). Click a hue to
+        toggle it; double-click to isolate; click the isolated hue again to
+        re-add the others.
+      </p>
+
+      <div id="status" class="banner" hidden></div>
+
+      <div class="activity-toolbar">
+        <a href="/" class="btn">Catalog</a>
+        <button type="button" id="activityReset" class="btn activity-reset" disabled>
+          Reset hues
+        </button>
+      </div>
+
+      <div id="activityLegend" class="activity-legend" hidden></div>
+
+      <div class="activity-chart-wrap">
+        <canvas id="activityChart" width="960" height="420" aria-label="Version release timeline"></canvas>
+        <div id="activityTooltip" class="activity-tooltip" hidden></div>
+      </div>
+    </div>
+    <script>
+      window.__STUFF_CATALOG_BASE__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
+    </script>
+    <script src="/activity.js"></script>
+  </body>
+</html>

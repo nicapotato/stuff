@@ -890,9 +890,16 @@
     searchWrap.appendChild(searchLabel);
     searchWrap.appendChild(searchInputEl);
 
+    var activityLink = document.createElement("a");
+    activityLink.href = "/activity/";
+    activityLink.className = "catalog-toolbar-link";
+    activityLink.textContent = "Activity";
+    activityLink.title = "Version release timeline";
+
     rowWrap.appendChild(left);
     rowWrap.appendChild(center);
     rowWrap.appendChild(searchWrap);
+    rowWrap.appendChild(activityLink);
 
     var rowCpu = document.createElement("div");
     rowCpu.className = "catalog-toolbar-row catalog-toolbar-row--cpu";

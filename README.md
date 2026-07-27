@@ -1,6 +1,6 @@
 # stuff
 
-**Static stuff site** (vanilla JavaScript and CSS). The main page is a sortable **software** table: titles, tags, versions, platforms, release dates, checksums, downloads, and play links. Supporting folders include `apps/`, `games/`, `prototype/`, `quickstart/`, and related assets.
+**Static stuff site** (vanilla JavaScript and CSS). The main page is a sortable **software** table: titles, tags, versions, platforms, release dates, checksums, downloads, and play links. `/activity/` plots version releases over time (project hues are toggleable). Supporting folders include `apps/`, `games/`, `prototype/`, `quickstart/`, and related assets.
 
 ## User guide
 
