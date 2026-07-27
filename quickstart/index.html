@@ -3,22 +3,70 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Redirect — nicapotato</title>
-    <meta http-equiv="refresh" content="0; url=../index.html?maturity=quickstart" />
+    <title>Quickstart — Stuff</title>
+    <link rel="icon" type="image/png" href="/public/stuff-flavicon.png" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #0f1114; color: #e8eaed">
-    <p>
-      Quickstart builds are listed in the
-      <a href="../index.html?maturity=quickstart" style="color: #6eb5ff">catalog</a>
-      (use the Quickstart channel filter).
-    </p>
+  <body>
+    <div class="wrap wrap--catalog">
+      <header class="stuff-title-header">
+        <h1 class="stuff-title-banner">
+          <span class="visually-hidden">Stuff</span>
+        </h1>
+      </header>
+      <p class="activity-lede">
+        Quickstart templates (games and apps). Released and prototype software
+        live on the main <a href="/">catalog</a>.
+      </p>
+      <div id="status" class="banner" hidden></div>
+      <div id="catalog-toolbar" class="catalog-toolbar" hidden></div>
+      <div id="mac-quarantine-notice" class="mac-quarantine-bubble" hidden role="note">
+        <p>
+          <strong>macOS (Gatekeeper)</strong>: These ZIPs are not signed with an Apple Developer ID, so
+          macOS may quarantine them after download. That is normal for independent builds. After
+          unzipping, open Terminal, <code>cd</code> to the folder that contains the
+          <code>.app</code> bundle, then run the <code>xattr -cr</code> command shown on each row
+          below (it removes quarantine for that bundle). Only run it for software you trust. If the
+          app is not in the current directory, pass a full path instead (for example
+          <code>xattr -cr ~/Downloads/MyGame.app</code>).
+        </p>
+      </div>
+      <div class="table-scroll">
+        <table class="catalog-table">
+          <thead>
+            <tr>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="title">
+                  Software
+                </button>
+              </th>
+              <th scope="col">Tags</th>
+              <th scope="col">Version</th>
+              <th scope="col">Platform</th>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="released">
+                  Released
+                </button>
+              </th>
+              <th scope="col">SHA-256</th>
+              <th scope="col">
+                <button type="button" class="catalog-th-sort" data-sort-key="size">
+                  Download
+                </button>
+              </th>
+              <th scope="col">Play</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
     <script>
-      (function () {
-        var p = new URLSearchParams(window.location.search);
-        if (!p.has("maturity")) p.set("maturity", "quickstart");
-        var qs = p.toString();
-        window.location.replace("../index.html" + (qs ? "?" + qs : "") + window.location.hash);
-      })();
+      window.__STUFF_CATALOG_BASE__ =
+        "https://prod-nicapotato-public-software.s3.eu-west-2.amazonaws.com";
+      window.__STUFF_CATALOG_UNIFIED__ = true;
+      window.__STUFF_CATALOG_QUICKSTART_ONLY__ = true;
     </script>
+    <script src="/catalog.js"></script>
   </body>
 </html>

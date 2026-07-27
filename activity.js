@@ -1,6 +1,6 @@
 /* Stuff /activity — version release timeline. Projects map to hues;
  * click toggles, double-click isolates, click isolated hue re-adds others,
- * Reset restores all. Markers: ★ major, + minor, ● patch (vs prior release).
+ * Reset restores all. Markers: ★ major, ▲ minor, ● patch (vs prior release).
  * View modes: detail (every release) or year aggregation. Fails loudly when
  * catalogs cannot be loaded.
  */
@@ -21,15 +21,23 @@
   var tooltipEl = document.getElementById("activityTooltip");
   var viewDetailBtn = document.getElementById("viewDetail");
   var viewYearBtn = document.getElementById("viewYear");
+  var filtersEl = document.getElementById("activityFilters");
   if (!statusEl || !legendEl || !resetBtn || !canvas || !tooltipEl) {
     throw new Error("activity.js: missing required DOM nodes");
   }
   if (!viewDetailBtn || !viewYearBtn) {
     throw new Error("activity.js: missing view mode controls");
   }
+  if (!filtersEl) {
+    throw new Error("activity.js: missing activityFilters container");
+  }
 
   var ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("activity.js: canvas 2d context unavailable");
+
+  // Quickstarts are omitted from activity (dedicated /quickstart/ table).
+  var MATURITY_VALUES = ["released", "prototype"];
+  var CATEGORY_VALUES = ["games", "apps"];
 
   /** @type {{key:string,name:string,hue:number,visible:boolean}[]} */
   var projects = [];
@@ -41,6 +49,9 @@
   var isolatedKey = null;
   /** "detail" = every release; "year" = one marker per project per calendar year. */
   var viewMode = "detail";
+  var activeFilterCategories = new Set();
+  var activeFilterMaturities = new Set();
+  var urlWriteSuppressed = false;
   var clickTimer = null;
   var hoverEvent = null;
   var dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -173,10 +184,237 @@
     }
   }
 
-  function syncResetEnabled() {
-    var allOn = projects.every(function (p) {
-      return p.visible;
+  function parseListParam(sp, key) {
+    var raw = sp.getAll(key);
+    var out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var parts = String(raw[i]).split(",");
+      for (var j = 0; j < parts.length; j++) {
+        var s = parts[j].trim();
+        if (s) out.push(s);
+      }
+    }
+    return out;
+  }
+
+  function readFiltersFromUrl() {
+    var sp = new URLSearchParams(window.location.search);
+
+    activeFilterMaturities.clear();
+    if (!sp.has("maturity")) {
+      activeFilterMaturities.add("released");
+    } else {
+      var mv = parseListParam(sp, "maturity").map(function (m) {
+        return m.toLowerCase();
+      });
+      if (mv.indexOf("all") >= 0) {
+        for (var ai = 0; ai < MATURITY_VALUES.length; ai++) {
+          activeFilterMaturities.add(MATURITY_VALUES[ai]);
+        }
+      } else {
+        for (var mi = 0; mi < MATURITY_VALUES.length; mi++) {
+          if (mv.indexOf(MATURITY_VALUES[mi]) >= 0) {
+            activeFilterMaturities.add(MATURITY_VALUES[mi]);
+          }
+        }
+      }
+      if (activeFilterMaturities.size === 0) activeFilterMaturities.add("released");
+    }
+
+    activeFilterCategories.clear();
+    var cv = parseListParam(sp, "category");
+    if (cv.length === 0) {
+      activeFilterCategories.add("games");
+      activeFilterCategories.add("apps");
+    } else {
+      for (var ci = 0; ci < cv.length; ci++) {
+        var c = cv[ci].toLowerCase();
+        if (c === "games" || c === "apps") activeFilterCategories.add(c);
+      }
+      if (activeFilterCategories.size === 0) {
+        activeFilterCategories.add("games");
+        activeFilterCategories.add("apps");
+      }
+    }
+  }
+
+  function writeFiltersToUrl() {
+    if (urlWriteSuppressed) return;
+    var sp = new URLSearchParams(window.location.search);
+    sp.delete("maturity");
+    sp.delete("category");
+
+    var defaultMaturity =
+      activeFilterMaturities.size === 1 && activeFilterMaturities.has("released");
+    if (!defaultMaturity) {
+      var mlist = [];
+      for (var mi = 0; mi < MATURITY_VALUES.length; mi++) {
+        if (activeFilterMaturities.has(MATURITY_VALUES[mi])) mlist.push(MATURITY_VALUES[mi]);
+      }
+      if (mlist.length) sp.set("maturity", mlist.join(","));
+    }
+
+    var defaultCat =
+      activeFilterCategories.size === 2 &&
+      activeFilterCategories.has("games") &&
+      activeFilterCategories.has("apps");
+    if (!defaultCat && activeFilterCategories.size > 0) {
+      var clist = [];
+      for (var ci = 0; ci < CATEGORY_VALUES.length; ci++) {
+        if (activeFilterCategories.has(CATEGORY_VALUES[ci])) clist.push(CATEGORY_VALUES[ci]);
+      }
+      if (clist.length) sp.set("category", clist.join(","));
+    }
+
+    var qs = sp.toString();
+    var next = window.location.pathname + (qs ? "?" + qs : "") + window.location.hash;
+    window.history.replaceState(null, "", next);
+  }
+
+  function syncFilterButtonPressedStates() {
+    var mats = filtersEl.querySelectorAll("button.mat-filter");
+    for (var i = 0; i < mats.length; i++) {
+      var mid = mats[i].getAttribute("data-mat");
+      mats[i].setAttribute(
+        "aria-pressed",
+        activeFilterMaturities.has(mid) ? "true" : "false"
+      );
+    }
+    var cats = filtersEl.querySelectorAll("button.cat-filter");
+    for (var ci = 0; ci < cats.length; ci++) {
+      var cid = cats[ci].getAttribute("data-cat");
+      cats[ci].setAttribute(
+        "aria-pressed",
+        activeFilterCategories.has(cid) ? "true" : "false"
+      );
+    }
+  }
+
+  function applyCatalogFilters() {
+    if (isolatedKey && !projectsInFilter().some(function (p) {
+      return p.key === isolatedKey;
+    })) {
+      isolatedKey = null;
+      for (var i = 0; i < projects.length; i++) projects[i].visible = true;
+    }
+    hoverEvent = null;
+    tooltipEl.hidden = true;
+    mountLegend();
+    syncFilterButtonPressedStates();
+    syncResetEnabled();
+    writeFiltersToUrl();
+    draw();
+  }
+
+  function mountActivityFilters() {
+    filtersEl.innerHTML = "";
+    filtersEl.hidden = false;
+
+    var row = document.createElement("div");
+    row.className = "catalog-toolbar-row";
+
+    var center = document.createElement("div");
+    center.className = "catalog-toolbar-center";
+
+    var catLabel = document.createElement("span");
+    catLabel.className = "catalog-toolbar-label";
+    catLabel.textContent = "Category";
+    var catGroup = document.createElement("div");
+    catGroup.className = "catalog-toolbar-toggles";
+    catGroup.setAttribute("role", "group");
+    catGroup.setAttribute("aria-label", "Filter games vs apps");
+    [
+      ["games", "Games"],
+      ["apps", "Apps"],
+    ].forEach(function (pair) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cat-filter";
+      btn.setAttribute("data-cat", pair[0]);
+      btn.setAttribute("aria-pressed", "false");
+      btn.title = "Toggle filter: " + pair[1];
+      btn.textContent = pair[1];
+      btn.addEventListener("click", function () {
+        if (activeFilterCategories.has(pair[0])) activeFilterCategories.delete(pair[0]);
+        else activeFilterCategories.add(pair[0]);
+        if (activeFilterCategories.size === 0) {
+          activeFilterCategories.add("games");
+          activeFilterCategories.add("apps");
+        }
+        applyCatalogFilters();
+      });
+      catGroup.appendChild(btn);
     });
+    center.appendChild(catLabel);
+    center.appendChild(catGroup);
+
+    var matLabel = document.createElement("span");
+    matLabel.className = "catalog-toolbar-label";
+    matLabel.textContent = "Channel";
+    var matGroup = document.createElement("div");
+    matGroup.className = "catalog-toolbar-toggles";
+    matGroup.setAttribute("role", "group");
+    matGroup.setAttribute("aria-label", "Filter released or prototype");
+    [
+      ["released", "Released"],
+      ["prototype", "Prototype"],
+    ].forEach(function (pair) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mat-filter";
+      btn.setAttribute("data-mat", pair[0]);
+      btn.setAttribute("aria-pressed", "false");
+      btn.title = "Toggle filter: " + pair[1];
+      btn.textContent = pair[1];
+      btn.addEventListener("click", function () {
+        if (activeFilterMaturities.has(pair[0])) activeFilterMaturities.delete(pair[0]);
+        else activeFilterMaturities.add(pair[0]);
+        if (activeFilterMaturities.size === 0) activeFilterMaturities.add("released");
+        applyCatalogFilters();
+      });
+      matGroup.appendChild(btn);
+    });
+    center.appendChild(matLabel);
+    center.appendChild(matGroup);
+
+    row.appendChild(center);
+    filtersEl.appendChild(row);
+    syncFilterButtonPressedStates();
+  }
+
+  function filteredEvents() {
+    return events.filter(function (ev) {
+      return (
+        activeFilterCategories.has(ev.category) &&
+        activeFilterMaturities.has(ev.maturity)
+      );
+    });
+  }
+
+  function projectsInFilter() {
+    var seen = Object.create(null);
+    var out = [];
+    var filtered = filteredEvents();
+    for (var i = 0; i < filtered.length; i++) {
+      var key = filtered[i].projectKey;
+      if (seen[key]) continue;
+      seen[key] = true;
+      var p = projectByKey[key];
+      if (p) out.push(p);
+    }
+    out.sort(function (a, b) {
+      return a.name.localeCompare(b.name);
+    });
+    return out;
+  }
+
+  function syncResetEnabled() {
+    var inFilter = projectsInFilter();
+    var allOn =
+      inFilter.length > 0 &&
+      inFilter.every(function (p) {
+        return p.visible;
+      });
     resetBtn.disabled = allOn && isolatedKey == null;
   }
 
@@ -201,7 +439,7 @@
     } else {
       p.visible = !p.visible;
     }
-    var any = projects.some(function (x) {
+    var any = projectsInFilter().some(function (x) {
       return x.visible;
     });
     if (!any) p.visible = true;
@@ -258,13 +496,16 @@
     legendEl.hidden = false;
     legendEl.innerHTML = "";
     var frag = document.createDocumentFragment();
-    for (var i = 0; i < projects.length; i++) {
-      var p = projects[i];
+    var list = projectsInFilter();
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "activity-hue";
       btn.setAttribute("data-key", p.key);
-      btn.setAttribute("aria-pressed", "true");
+      btn.setAttribute("aria-pressed", p.visible ? "true" : "false");
+      btn.classList.toggle("is-off", !p.visible);
+      btn.classList.toggle("is-isolated", isolatedKey === p.key);
       btn.title = "Click to toggle · double-click to isolate";
       btn.innerHTML =
         '<span class="activity-hue-swatch" style="background:' +
@@ -298,16 +539,31 @@
   }
 
   function visibleProjects() {
-    return projects.filter(function (p) {
+    return projectsInFilter().filter(function (p) {
       return p.visible;
     });
   }
 
   function visibleRawEvents() {
-    return events.filter(function (ev) {
+    var list = filteredEvents().filter(function (ev) {
       var p = projectByKey[ev.projectKey];
       return p && p.visible;
     });
+    // Recompute bumps within the active category/channel filter.
+    var copies = list.map(function (ev) {
+      return {
+        t: ev.t,
+        iso: ev.iso,
+        projectKey: ev.projectKey,
+        name: ev.name,
+        version: ev.version,
+        maturity: ev.maturity,
+        category: ev.category,
+        bump: ev.bump,
+      };
+    });
+    annotateBumps(copies);
+    return copies;
   }
 
   /** Points actually plotted (raw releases, or one aggregated point per project-year). */
@@ -481,50 +737,52 @@
     ctx.closePath();
   }
 
-  function drawPlus(x, y, s, lineWidth) {
+  function trianglePath(x, y, r) {
     ctx.beginPath();
-    ctx.lineWidth = lineWidth == null ? Math.max(2, s * 0.45) : lineWidth;
-    ctx.lineCap = "round";
-    ctx.moveTo(x - s, y);
-    ctx.lineTo(x + s, y);
-    ctx.moveTo(x, y - s);
-    ctx.lineTo(x, y + s);
-    ctx.stroke();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r * 0.9, y + r * 0.75);
+    ctx.lineTo(x - r * 0.9, y + r * 0.75);
+    ctx.closePath();
   }
 
   function drawMarker(ev, x, y, highlighted) {
     var p = projectByKey[ev.projectKey];
     var color = hueColor(p.hue, 0.95);
-    var size = highlighted ? 8 : 6;
     if (ev.bump === "major") {
+      var majorR = highlighted ? 8 : 6;
       ctx.fillStyle = color;
-      starPath(x, y, size);
+      starPath(x, y, majorR);
       ctx.fill();
       if (highlighted) {
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 1.5;
-        starPath(x, y, size);
+        starPath(x, y, majorR);
         ctx.stroke();
       }
       return;
     }
     if (ev.bump === "minor") {
-      ctx.strokeStyle = color;
-      drawPlus(x, y, size);
+      var minorR = highlighted ? 5 : 3.5;
+      ctx.fillStyle = color;
+      trianglePath(x, y, minorR);
+      ctx.fill();
       if (highlighted) {
         ctx.strokeStyle = "#fff";
-        drawPlus(x, y, size + 1, 1.5);
+        ctx.lineWidth = 1.25;
+        trianglePath(x, y, minorR);
+        ctx.stroke();
       }
       return;
     }
-    // patch — current (filled circle)
+    // patch — filled circle (smaller than major/minor)
+    var patchR = highlighted ? 3.5 : 2.5;
     ctx.beginPath();
     ctx.fillStyle = color;
-    ctx.arc(x, y, highlighted ? 6 : 4.5, 0, Math.PI * 2);
+    ctx.arc(x, y, patchR, 0, Math.PI * 2);
     ctx.fill();
     if (highlighted) {
       ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.25;
       ctx.stroke();
     }
   }
@@ -657,7 +915,7 @@
       when = ev.iso;
     }
     var bumpLabel =
-      ev.bump === "major" ? "major ★" : ev.bump === "minor" ? "minor +" : "patch ●";
+      ev.bump === "major" ? "major ★" : ev.bump === "minor" ? "minor ▲" : "patch ●";
     var versionLine;
     if (ev.aggregated && ev.versions && ev.versions.length > 1) {
       versionLine =
@@ -718,15 +976,14 @@
   });
 
   async function load() {
+    readFiltersFromUrl();
     showStatus("Loading catalogs…", false);
     var base = catalogBaseTrimmed();
     var tuples = [
       [base + "/games/released/catalog.json", "released", "games"],
       [base + "/games/prototype/catalog.json", "prototype", "games"],
-      [base + "/games/quickstart/catalog.json", "quickstart", "games"],
       [base + "/apps/released/catalog.json", "released", "apps"],
       [base + "/apps/prototype/catalog.json", "prototype", "apps"],
-      [base + "/apps/quickstart/catalog.json", "quickstart", "apps"],
     ];
 
     var docs;
@@ -785,10 +1042,19 @@
     projects = list;
 
     statusEl.hidden = true;
+    mountActivityFilters();
     mountLegend();
     syncResetEnabled();
     syncViewModeButtons();
+    writeFiltersToUrl();
     draw();
+
+    window.addEventListener("popstate", function () {
+      urlWriteSuppressed = true;
+      readFiltersFromUrl();
+      applyCatalogFilters();
+      urlWriteSuppressed = false;
+    });
   }
 
   load();

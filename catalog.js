@@ -1,6 +1,7 @@
 (function () {
   var CATALOG_BASE = window.__STUFF_CATALOG_BASE__;
   var UNIFIED_CATALOG = window.__STUFF_CATALOG_UNIFIED__ === true;
+  var QUICKSTART_ONLY = window.__STUFF_CATALOG_QUICKSTART_ONLY__ === true;
   var PAGE_SECTION = window.__STUFF_PAGE_SECTION__ || "games";
   if (!CATALOG_BASE) {
     console.error("catalog.js: set window.__STUFF_CATALOG_BASE__ before loading");
@@ -29,7 +30,10 @@
   ];
   var uiPlatformOrder = ["linux", "web", "macos", "windows"];
   var CPU_ORDER = ["x86_64", "arm64"];
-  var MATURITY_VALUES = ["released", "prototype", "quickstart"];
+  // Main catalog: released + prototype. Quickstarts live on /quickstart/.
+  var MATURITY_VALUES = QUICKSTART_ONLY
+    ? ["quickstart"]
+    : ["released", "prototype"];
 
   function maturityRank(m) {
     if (m === "released") return 0;
@@ -530,17 +534,34 @@
     var sp = new URLSearchParams(window.location.search);
 
     activeFilterMaturities.clear();
-    if (!sp.has("maturity")) {
+    if (QUICKSTART_ONLY) {
+      activeFilterMaturities.add("quickstart");
+    } else if (!sp.has("maturity")) {
       activeFilterMaturities.add("released");
     } else {
       var mv = parseListParam(sp, "maturity");
       var lower = mv.map(function (m) {
         return m.toLowerCase();
       });
+      // Legacy links to the main catalog with maturity=quickstart → dedicated page.
+      if (!QUICKSTART_ONLY && lower.indexOf("quickstart") >= 0 && lower.indexOf("all") < 0) {
+        var onlyQuick =
+          lower.filter(function (m) {
+            return m === "released" || m === "prototype" || m === "quickstart";
+          }).length === 1;
+        if (onlyQuick) {
+          var spQuick = new URLSearchParams(window.location.search);
+          spQuick.delete("maturity");
+          var qsQuick = spQuick.toString();
+          window.location.replace(
+            "/quickstart/" + (qsQuick ? "?" + qsQuick : "") + window.location.hash
+          );
+          return;
+        }
+      }
       if (lower.indexOf("all") >= 0) {
         activeFilterMaturities.add("released");
         activeFilterMaturities.add("prototype");
-        activeFilterMaturities.add("quickstart");
       } else {
         for (var mi = 0; mi < MATURITY_VALUES.length; mi++) {
           var t = MATURITY_VALUES[mi];
@@ -602,14 +623,15 @@
       sp.delete(k);
     });
 
-    var defaultMaturity =
-      activeFilterMaturities.size === 1 && activeFilterMaturities.has("released");
-    if (!defaultMaturity) {
-      var mlist = [];
-      if (activeFilterMaturities.has("released")) mlist.push("released");
-      if (activeFilterMaturities.has("prototype")) mlist.push("prototype");
-      if (activeFilterMaturities.has("quickstart")) mlist.push("quickstart");
-      if (mlist.length) sp.set("maturity", mlist.join(","));
+    if (!QUICKSTART_ONLY) {
+      var defaultMaturity =
+        activeFilterMaturities.size === 1 && activeFilterMaturities.has("released");
+      if (!defaultMaturity) {
+        var mlist = [];
+        if (activeFilterMaturities.has("released")) mlist.push("released");
+        if (activeFilterMaturities.has("prototype")) mlist.push("prototype");
+        if (mlist.length) sp.set("maturity", mlist.join(","));
+      }
     }
 
     if (UNIFIED_CATALOG) {
@@ -825,44 +847,45 @@
       center.appendChild(catGroup);
     }
 
-    var matLabel = document.createElement("span");
-    matLabel.className = "catalog-toolbar-label";
-    matLabel.textContent = "Channel";
+    if (!QUICKSTART_ONLY) {
+      var matLabel = document.createElement("span");
+      matLabel.className = "catalog-toolbar-label";
+      matLabel.textContent = "Channel";
 
-    var matGroup = document.createElement("div");
-    matGroup.className = "catalog-toolbar-toggles";
-    matGroup.setAttribute("role", "group");
-    matGroup.setAttribute("aria-label", "Filter released, prototype, or quickstart");
+      var matGroup = document.createElement("div");
+      matGroup.className = "catalog-toolbar-toggles";
+      matGroup.setAttribute("role", "group");
+      matGroup.setAttribute("aria-label", "Filter released or prototype");
 
-    [
-      ["released", "Released"],
-      ["prototype", "Prototype"],
-      ["quickstart", "Quickstart"],
-    ].forEach(function (pair) {
-      var mat = pair[0];
-      var label = pair[1];
-      (function (maturity, text) {
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "mat-filter";
-        btn.setAttribute("data-mat", maturity);
-        btn.setAttribute("aria-pressed", "false");
-        btn.title = "Toggle filter: " + text;
-        btn.textContent = text;
-        btn.addEventListener("click", function () {
-          if (activeFilterMaturities.has(maturity)) activeFilterMaturities.delete(maturity);
-          else activeFilterMaturities.add(maturity);
-          if (activeFilterMaturities.size === 0) activeFilterMaturities.add("released");
-          syncFilterButtonPressedStates();
-          applyRowFilters();
-          writeFiltersToUrl();
-        });
-        matGroup.appendChild(btn);
-      })(mat, label);
-    });
+      [
+        ["released", "Released"],
+        ["prototype", "Prototype"],
+      ].forEach(function (pair) {
+        var mat = pair[0];
+        var label = pair[1];
+        (function (maturity, text) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "mat-filter";
+          btn.setAttribute("data-mat", maturity);
+          btn.setAttribute("aria-pressed", "false");
+          btn.title = "Toggle filter: " + text;
+          btn.textContent = text;
+          btn.addEventListener("click", function () {
+            if (activeFilterMaturities.has(maturity)) activeFilterMaturities.delete(maturity);
+            else activeFilterMaturities.add(maturity);
+            if (activeFilterMaturities.size === 0) activeFilterMaturities.add("released");
+            syncFilterButtonPressedStates();
+            applyRowFilters();
+            writeFiltersToUrl();
+          });
+          matGroup.appendChild(btn);
+        })(mat, label);
+      });
 
-    center.appendChild(matLabel);
-    center.appendChild(matGroup);
+      center.appendChild(matLabel);
+      center.appendChild(matGroup);
+    }
 
     var searchWrap = document.createElement("div");
     searchWrap.className = "catalog-toolbar-search";
@@ -890,16 +913,36 @@
     searchWrap.appendChild(searchLabel);
     searchWrap.appendChild(searchInputEl);
 
+    var linksWrap = document.createElement("div");
+    linksWrap.className = "catalog-toolbar-links";
+
+    if (QUICKSTART_ONLY) {
+      var catalogLink = document.createElement("a");
+      catalogLink.href = "/";
+      catalogLink.className = "catalog-toolbar-link";
+      catalogLink.textContent = "Catalog";
+      catalogLink.title = "Released and prototype software";
+      linksWrap.appendChild(catalogLink);
+    } else {
+      var quickstartLink = document.createElement("a");
+      quickstartLink.href = "/quickstart/";
+      quickstartLink.className = "catalog-toolbar-link";
+      quickstartLink.textContent = "Quickstart";
+      quickstartLink.title = "Quickstart templates";
+      linksWrap.appendChild(quickstartLink);
+    }
+
     var activityLink = document.createElement("a");
     activityLink.href = "/activity/";
     activityLink.className = "catalog-toolbar-link";
     activityLink.textContent = "Activity";
     activityLink.title = "Version release timeline";
+    linksWrap.appendChild(activityLink);
 
     rowWrap.appendChild(left);
     rowWrap.appendChild(center);
     rowWrap.appendChild(searchWrap);
-    rowWrap.appendChild(activityLink);
+    rowWrap.appendChild(linksWrap);
 
     var rowCpu = document.createElement("div");
     rowCpu.className = "catalog-toolbar-row catalog-toolbar-row--cpu";
@@ -1105,6 +1148,9 @@
   }
 
   function emptyMessage() {
+    if (QUICKSTART_ONLY) {
+      return "No quickstart builds in catalog yet. Publish quickstart templates with AWS OIDC configured.";
+    }
     if (UNIFIED_CATALOG) {
       return "No software in catalog yet. Publish games or apps with AWS OIDC configured.";
     }
@@ -1146,14 +1192,31 @@
     var base = catalogBaseTrimmed();
     var rows = [];
 
-    if (UNIFIED_CATALOG) {
+    if (QUICKSTART_ONLY) {
+      var qsTuples = [
+        [base + "/games/quickstart/catalog.json", "quickstart", "games"],
+        [base + "/apps/quickstart/catalog.json", "quickstart", "apps"],
+      ];
+      var qsDocs = await Promise.all(
+        qsTuples.map(function (t) {
+          return fetchCatalogJson(t[0]);
+        })
+      );
+      var qsAny = false;
+      for (var qi = 0; qi < qsDocs.length; qi++) {
+        if (qsDocs[qi]) qsAny = true;
+        collectIntoRows(qsDocs[qi], qsTuples[qi][1], qsTuples[qi][2], rows);
+      }
+      if (!qsAny) {
+        showStatus("Nothing Available", true);
+        return;
+      }
+    } else if (UNIFIED_CATALOG) {
       var tuples = [
         [base + "/games/released/catalog.json", "released", "games"],
         [base + "/games/prototype/catalog.json", "prototype", "games"],
-        [base + "/games/quickstart/catalog.json", "quickstart", "games"],
         [base + "/apps/released/catalog.json", "released", "apps"],
         [base + "/apps/prototype/catalog.json", "prototype", "apps"],
-        [base + "/apps/quickstart/catalog.json", "quickstart", "apps"],
       ];
       var docs = await Promise.all(
         tuples.map(function (t) {
@@ -1172,9 +1235,8 @@
     } else {
       var releasedDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/released/catalog.json");
       var prototypeDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/prototype/catalog.json");
-      var quickstartDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/quickstart/catalog.json");
 
-      if (!releasedDoc && !prototypeDoc && !quickstartDoc) {
+      if (!releasedDoc && !prototypeDoc) {
         showStatus("Nothing Available", true);
         return;
       }
@@ -1182,7 +1244,6 @@
       var cat = PAGE_SECTION === "apps" ? "apps" : "games";
       collectIntoRows(releasedDoc, "released", cat, rows);
       collectIntoRows(prototypeDoc, "prototype", cat, rows);
-      collectIntoRows(quickstartDoc, "quickstart", cat, rows);
     }
 
     rows.sort(function (a, b) {
