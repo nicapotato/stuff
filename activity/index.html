@@ -18,13 +18,22 @@
       <p class="activity-lede">
         Version releases over time. Each project is a color (hue). Click a hue to
         toggle it; double-click to isolate; click the isolated hue again to
-        re-add the others.
+        re-add the others. Markers follow
+        <code>MAJOR.MINOR.PATCH</code>: ★ major, + minor, ● patch.
       </p>
 
       <div id="status" class="banner" hidden></div>
 
       <div class="activity-toolbar">
         <a href="/" class="btn">Catalog</a>
+        <div class="activity-view-modes" role="group" aria-label="Timeline view">
+          <button type="button" id="viewDetail" class="btn is-active" aria-pressed="true">
+            Detail
+          </button>
+          <button type="button" id="viewYear" class="btn" aria-pressed="false">
+            By year
+          </button>
+        </div>
         <button type="button" id="activityReset" class="btn activity-reset" disabled>
           Reset hues
         </button>

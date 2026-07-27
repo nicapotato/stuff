@@ -1,6 +1,8 @@
 /* Stuff /activity — version release timeline. Projects map to hues;
  * click toggles, double-click isolates, click isolated hue re-adds others,
- * Reset restores all. Fails loudly when catalogs cannot be loaded.
+ * Reset restores all. Markers: ★ major, + minor, ● patch (vs prior release).
+ * View modes: detail (every release) or year aggregation. Fails loudly when
+ * catalogs cannot be loaded.
  */
 (function () {
   "use strict";
@@ -17,8 +19,13 @@
   var resetBtn = document.getElementById("activityReset");
   var canvas = document.getElementById("activityChart");
   var tooltipEl = document.getElementById("activityTooltip");
+  var viewDetailBtn = document.getElementById("viewDetail");
+  var viewYearBtn = document.getElementById("viewYear");
   if (!statusEl || !legendEl || !resetBtn || !canvas || !tooltipEl) {
     throw new Error("activity.js: missing required DOM nodes");
+  }
+  if (!viewDetailBtn || !viewYearBtn) {
+    throw new Error("activity.js: missing view mode controls");
   }
 
   var ctx = canvas.getContext("2d");
@@ -28,15 +35,19 @@
   var projects = [];
   /** @type {Record<string,{key:string,name:string,hue:number,visible:boolean}>} */
   var projectByKey = Object.create(null);
-  /** @type {{t:number,iso:string,projectKey:string,name:string,version:string,maturity:string,category:string}[]} */
+  /** @type {{t:number,iso:string,projectKey:string,name:string,version:string,maturity:string,category:string,bump:string}[]} */
   var events = [];
   /** When set, only this project is visible (double-click isolate). */
   var isolatedKey = null;
+  /** "detail" = every release; "year" = one marker per project per calendar year. */
+  var viewMode = "detail";
   var clickTimer = null;
   var hoverEvent = null;
   var dpr = Math.max(1, window.devicePixelRatio || 1);
+  var LABEL_CHARS = 35;
+  var LABEL_FONT = "12px system-ui, -apple-system, sans-serif";
 
-  var PAD = { top: 28, right: 24, bottom: 44, left: 168 };
+  var PAD = { top: 28, right: 24, bottom: 44, left: 280 };
 
   function showStatus(msg, isError) {
     statusEl.hidden = false;
@@ -93,6 +104,44 @@
     return "hsla(" + hue + ", 72%, 62%, " + (alpha == null ? 1 : alpha) + ")";
   }
 
+  /** Parse MAJOR.MINOR.PATCH prefix (e.g. 0.1.35 or 0.0.15-wasd-prototype). */
+  function parseSemver(version) {
+    var m = String(version).match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!m) return null;
+    return { major: +m[1], minor: +m[2], patch: +m[3] };
+  }
+
+  function bumpKind(prev, curr) {
+    if (!curr) return "patch";
+    if (!prev) return "major";
+    if (curr.major !== prev.major) return "major";
+    if (curr.minor !== prev.minor) return "minor";
+    return "patch";
+  }
+
+  function annotateBumps(list) {
+    var byProject = Object.create(null);
+    for (var i = 0; i < list.length; i++) {
+      var ev = list[i];
+      if (!byProject[ev.projectKey]) byProject[ev.projectKey] = [];
+      byProject[ev.projectKey].push(ev);
+    }
+    var keys = Object.keys(byProject);
+    for (var ki = 0; ki < keys.length; ki++) {
+      var group = byProject[keys[ki]];
+      group.sort(function (a, b) {
+        if (a.t !== b.t) return a.t - b.t;
+        return a.version.localeCompare(b.version, undefined, { numeric: true });
+      });
+      var prev = null;
+      for (var gi = 0; gi < group.length; gi++) {
+        var cur = parseSemver(group[gi].version);
+        group[gi].bump = bumpKind(prev, cur);
+        if (cur) prev = cur;
+      }
+    }
+  }
+
   function collectEvents(doc, maturity, category, out) {
     if (!doc) return;
     var rootKey = category === "apps" ? "apps" : "games";
@@ -118,6 +167,7 @@
           version: version,
           maturity: maturity,
           category: category,
+          bump: "patch",
         });
       }
     }
@@ -142,18 +192,15 @@
     var p = projectByKey[key];
     if (!p) return;
     if (isolatedKey === key) {
-      // Click isolated hue → re-add other hues.
       setAllVisible();
       return;
     }
     if (isolatedKey != null) {
-      // Leaving isolate: turn this one on (and keep current isolate off unless same).
       isolatedKey = null;
       p.visible = !p.visible;
     } else {
       p.visible = !p.visible;
     }
-    // Never allow zero visible projects — fail soft by re-enabling the clicked one.
     var any = projects.some(function (x) {
       return x.visible;
     });
@@ -186,6 +233,25 @@
       btn.classList.toggle("is-isolated", isolatedKey === key);
       btn.setAttribute("aria-pressed", p.visible ? "true" : "false");
     }
+  }
+
+  function syncViewModeButtons() {
+    viewDetailBtn.setAttribute("aria-pressed", viewMode === "detail" ? "true" : "false");
+    viewYearBtn.setAttribute("aria-pressed", viewMode === "year" ? "true" : "false");
+    viewDetailBtn.classList.toggle("is-active", viewMode === "detail");
+    viewYearBtn.classList.toggle("is-active", viewMode === "year");
+  }
+
+  function setViewMode(mode) {
+    if (mode !== "detail" && mode !== "year") {
+      throw new Error("activity.js: invalid view mode " + mode);
+    }
+    if (viewMode === mode) return;
+    viewMode = mode;
+    hoverEvent = null;
+    tooltipEl.hidden = true;
+    syncViewModeButtons();
+    draw();
   }
 
   function mountLegend() {
@@ -237,7 +303,88 @@
     });
   }
 
+  function visibleRawEvents() {
+    return events.filter(function (ev) {
+      var p = projectByKey[ev.projectKey];
+      return p && p.visible;
+    });
+  }
+
+  /** Points actually plotted (raw releases, or one aggregated point per project-year). */
+  function plotEvents() {
+    var raw = visibleRawEvents();
+    if (viewMode === "detail") return raw;
+
+    // Group by project, then emit one point per calendar year. Bump is the net
+    // change from the last version before that year to the last version in it.
+    var byProject = Object.create(null);
+    for (var i = 0; i < raw.length; i++) {
+      var ev = raw[i];
+      if (!byProject[ev.projectKey]) byProject[ev.projectKey] = [];
+      byProject[ev.projectKey].push(ev);
+    }
+
+    var out = [];
+    var projectKeys = Object.keys(byProject);
+    for (var pi = 0; pi < projectKeys.length; pi++) {
+      var group = byProject[projectKeys[pi]].slice().sort(function (a, b) {
+        if (a.t !== b.t) return a.t - b.t;
+        return a.version.localeCompare(b.version, undefined, { numeric: true });
+      });
+      var yearMap = Object.create(null);
+      for (var gi = 0; gi < group.length; gi++) {
+        var gEv = group[gi];
+        var year = new Date(gEv.t).getUTCFullYear();
+        if (!yearMap[year]) yearMap[year] = [];
+        yearMap[year].push(gEv);
+      }
+      var years = Object.keys(yearMap)
+        .map(function (y) {
+          return +y;
+        })
+        .sort(function (a, b) {
+          return a - b;
+        });
+      var prevSem = null;
+      for (var yi = 0; yi < years.length; yi++) {
+        var y = years[yi];
+        var list = yearMap[y];
+        var last = list[list.length - 1];
+        var lastSem = parseSemver(last.version);
+        var versions = list.map(function (e) {
+          return e.version;
+        });
+        out.push({
+          t: last.t,
+          iso: last.iso,
+          projectKey: last.projectKey,
+          name: last.name,
+          version: last.version,
+          maturity: last.maturity,
+          category: last.category,
+          bump: bumpKind(prevSem, lastSem),
+          year: y,
+          versions: versions,
+          aggregated: true,
+        });
+        if (lastSem) prevSem = lastSem;
+      }
+    }
+
+    out.sort(function (a, b) {
+      return a.t - b.t;
+    });
+    return out;
+  }
+
+  function measureLabelPad() {
+    ctx.font = LABEL_FONT;
+    var sample = new Array(LABEL_CHARS + 1).join("M");
+    return Math.ceil(ctx.measureText(sample).width) + 20;
+  }
+
   function layoutMetrics() {
+    PAD.left = Math.max(280, measureLabelPad());
     var cssW = canvas.clientWidth || canvas.width / dpr;
     var lanes = Math.max(1, visibleProjects().length);
     var laneH = 36;
@@ -275,6 +422,12 @@
       if (visibleEvents[i].t < t0) t0 = visibleEvents[i].t;
       if (visibleEvents[i].t > t1) t1 = visibleEvents[i].t;
     }
+    if (viewMode === "year") {
+      var y0 = new Date(t0).getUTCFullYear();
+      var y1 = new Date(t1).getUTCFullYear();
+      t0 = Date.UTC(y0, 0, 1);
+      t1 = Date.UTC(y1, 11, 31, 23, 59, 59);
+    }
     if (t0 === t1) {
       t0 -= 86400000 * 3;
       t1 += 86400000 * 3;
@@ -294,6 +447,9 @@
 
   function formatTick(t) {
     var d = new Date(t);
+    if (viewMode === "year") {
+      return String(d.getUTCFullYear());
+    }
     try {
       return new Intl.DateTimeFormat(undefined, {
         year: "numeric",
@@ -305,21 +461,85 @@
     }
   }
 
+  function truncateLabel(name) {
+    var s = String(name);
+    if (s.length <= LABEL_CHARS) return s;
+    return s.slice(0, LABEL_CHARS - 1) + "…";
+  }
+
+  function starPath(x, y, r) {
+    ctx.beginPath();
+    for (var i = 0; i < 5; i++) {
+      var a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+      var ox = x + Math.cos(a) * r;
+      var oy = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(ox, oy);
+      else ctx.lineTo(ox, oy);
+      var a2 = a + Math.PI / 5;
+      ctx.lineTo(x + Math.cos(a2) * r * 0.45, y + Math.sin(a2) * r * 0.45);
+    }
+    ctx.closePath();
+  }
+
+  function drawPlus(x, y, s, lineWidth) {
+    ctx.beginPath();
+    ctx.lineWidth = lineWidth == null ? Math.max(2, s * 0.45) : lineWidth;
+    ctx.lineCap = "round";
+    ctx.moveTo(x - s, y);
+    ctx.lineTo(x + s, y);
+    ctx.moveTo(x, y - s);
+    ctx.lineTo(x, y + s);
+    ctx.stroke();
+  }
+
+  function drawMarker(ev, x, y, highlighted) {
+    var p = projectByKey[ev.projectKey];
+    var color = hueColor(p.hue, 0.95);
+    var size = highlighted ? 8 : 6;
+    if (ev.bump === "major") {
+      ctx.fillStyle = color;
+      starPath(x, y, size);
+      ctx.fill();
+      if (highlighted) {
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+        starPath(x, y, size);
+        ctx.stroke();
+      }
+      return;
+    }
+    if (ev.bump === "minor") {
+      ctx.strokeStyle = color;
+      drawPlus(x, y, size);
+      if (highlighted) {
+        ctx.strokeStyle = "#fff";
+        drawPlus(x, y, size + 1, 1.5);
+      }
+      return;
+    }
+    // patch — current (filled circle)
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.arc(x, y, highlighted ? 6 : 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    if (highlighted) {
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
   function draw() {
     var m = resizeCanvas();
     var bounds = plotBounds(m);
     var vis = visibleProjects();
-    var visibleEvents = events.filter(function (ev) {
-      var p = projectByKey[ev.projectKey];
-      return p && p.visible;
-    });
-    var domain = timeDomain(visibleEvents);
+    var plotted = plotEvents();
+    var domain = timeDomain(plotted);
 
     ctx.clearRect(0, 0, m.cssW, m.cssH);
     ctx.fillStyle = "#12161c";
     ctx.fillRect(0, 0, m.cssW, m.cssH);
 
-    // Axes
     ctx.strokeStyle = "#2d3540";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -328,10 +548,14 @@
     ctx.lineTo(bounds.x1, bounds.y1);
     ctx.stroke();
 
-    // Time ticks
-    var tickN = Math.max(3, Math.min(7, Math.floor((bounds.x1 - bounds.x0) / 120)));
+    var tickN =
+      viewMode === "year"
+        ? Math.max(1, new Date(domain.t1).getUTCFullYear() - new Date(domain.t0).getUTCFullYear())
+        : Math.max(3, Math.min(7, Math.floor((bounds.x1 - bounds.x0) / 120)));
+    if (viewMode === "year") tickN = Math.min(tickN, 12);
+
     ctx.fillStyle = "#9aa3ad";
-    ctx.font = "12px system-ui, -apple-system, sans-serif";
+    ctx.font = LABEL_FONT;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     for (var ti = 0; ti <= tickN; ti++) {
@@ -352,7 +576,6 @@
     var plotH = bounds.y1 - bounds.y0;
     var laneH = plotH / Math.max(1, vis.length);
 
-    // Lane labels + guides
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for (var lj = 0; lj < vis.length; lj++) {
@@ -363,38 +586,29 @@
       ctx.lineTo(bounds.x1, yp);
       ctx.stroke();
       ctx.fillStyle = hueColor(vis[lj].hue);
-      ctx.font = "12px system-ui, -apple-system, sans-serif";
-      var label = vis[lj].name;
-      if (label.length > 22) label = label.slice(0, 21) + "…";
-      ctx.fillText(label, bounds.x0 - 10, yp);
+      ctx.font = LABEL_FONT;
+      ctx.fillText(truncateLabel(vis[lj].name), bounds.x0 - 10, yp);
     }
 
-    // Points
-    for (var ei = 0; ei < visibleEvents.length; ei++) {
-      var ev = visibleEvents[ei];
+    for (var ei = 0; ei < plotted.length; ei++) {
+      var ev = plotted[ei];
       var lane = laneIndex[ev.projectKey];
       if (lane == null) continue;
-      var p = projectByKey[ev.projectKey];
       var x = xForTime(ev.t, bounds, domain);
       var y = bounds.y0 + laneH * (lane + 0.5);
-      var r = hoverEvent === ev ? 7 : 5;
-      ctx.beginPath();
-      ctx.fillStyle = hueColor(p.hue, 0.95);
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      if (hoverEvent === ev) {
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
+      drawMarker(ev, x, y, hoverEvent === ev);
     }
 
-    if (!visibleEvents.length) {
+    if (!plotted.length) {
       ctx.fillStyle = "#9aa3ad";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.font = "14px system-ui, -apple-system, sans-serif";
-      ctx.fillText("No visible releases — reset hues or enable a project.", (bounds.x0 + bounds.x1) / 2, (bounds.y0 + bounds.y1) / 2);
+      ctx.fillText(
+        "No visible releases — reset hues or enable a project.",
+        (bounds.x0 + bounds.x1) / 2,
+        (bounds.y0 + bounds.y1) / 2
+      );
     }
   }
 
@@ -405,19 +619,16 @@
     var m = layoutMetrics();
     var bounds = plotBounds(m);
     var vis = visibleProjects();
-    var visibleEvents = events.filter(function (ev) {
-      var p = projectByKey[ev.projectKey];
-      return p && p.visible;
-    });
-    var domain = timeDomain(visibleEvents);
+    var plotted = plotEvents();
+    var domain = timeDomain(plotted);
     var laneIndex = Object.create(null);
     for (var i = 0; i < vis.length; i++) laneIndex[vis[i].key] = i;
     var plotH = bounds.y1 - bounds.y0;
     var laneH = plotH / Math.max(1, vis.length);
     var best = null;
-    var bestD = 12;
-    for (var ei = 0; ei < visibleEvents.length; ei++) {
-      var ev = visibleEvents[ei];
+    var bestD = 14;
+    for (var ei = 0; ei < plotted.length; ei++) {
+      var ev = plotted[ei];
       var lane = laneIndex[ev.projectKey];
       if (lane == null) continue;
       var px = xForTime(ev.t, bounds, domain);
@@ -445,21 +656,34 @@
     } catch (e) {
       when = ev.iso;
     }
+    var bumpLabel =
+      ev.bump === "major" ? "major ★" : ev.bump === "minor" ? "minor +" : "patch ●";
+    var versionLine;
+    if (ev.aggregated && ev.versions && ev.versions.length > 1) {
+      versionLine =
+        ev.year +
+        " · " +
+        ev.versions.length +
+        " releases (highest: " +
+        bumpLabel +
+        ")<br>" +
+        escapeHtml(ev.versions.join(", "));
+    } else {
+      versionLine =
+        escapeHtml(ev.version) +
+        " · " +
+        bumpLabel +
+        " · " +
+        escapeHtml(ev.maturity) +
+        "<br>" +
+        escapeHtml(when);
+    }
     tooltipEl.hidden = false;
     tooltipEl.innerHTML =
-      "<strong>" +
-      escapeHtml(ev.name) +
-      "</strong><br>" +
-      escapeHtml(ev.version) +
-      " · " +
-      escapeHtml(ev.maturity) +
-      "<br>" +
-      escapeHtml(when);
+      "<strong>" + escapeHtml(ev.name) + "</strong><br>" + versionLine;
     var wrap = canvas.parentElement.getBoundingClientRect();
-    var left = clientX - wrap.left + 12;
-    var top = clientY - wrap.top + 12;
-    tooltipEl.style.left = left + "px";
-    tooltipEl.style.top = top + "px";
+    tooltipEl.style.left = clientX - wrap.left + 12 + "px";
+    tooltipEl.style.top = clientY - wrap.top + 12 + "px";
   }
 
   canvas.addEventListener("mousemove", function (ev) {
@@ -480,6 +704,13 @@
 
   resetBtn.addEventListener("click", function () {
     setAllVisible();
+  });
+
+  viewDetailBtn.addEventListener("click", function () {
+    setViewMode("detail");
+  });
+  viewYearBtn.addEventListener("click", function () {
+    setViewMode("year");
   });
 
   window.addEventListener("resize", function () {
@@ -525,6 +756,7 @@
       throw new Error("no dated version events");
     }
 
+    annotateBumps(collected);
     events = collected.sort(function (a, b) {
       return a.t - b.t;
     });
@@ -545,7 +777,6 @@
     list.sort(function (a, b) {
       return a.name.localeCompare(b.name);
     });
-    // Spread hues evenly; fall back to hash if only one.
     for (var pi = 0; pi < list.length; pi++) {
       list[pi].hue =
         list.length === 1 ? hashHue(list[pi].key) : Math.round((pi * 360) / list.length);
@@ -556,6 +787,7 @@
     statusEl.hidden = true;
     mountLegend();
     syncResetEnabled();
+    syncViewModeButtons();
     draw();
   }
 

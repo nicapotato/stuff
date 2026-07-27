@@ -141,6 +141,23 @@ a:hover {
   margin: 0 0 0.75rem;
 }
 
+.activity-view-modes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.activity-toolbar .btn.is-active,
+.activity-toolbar .btn[aria-pressed="true"]:not(.activity-reset) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.activity-lede code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
 a.btn {
   display: inline-block;
   font: inherit;
