@@ -442,7 +442,112 @@
   }
 
   function rowItemKey(tr) {
-    return tr.dataset.category + "\0" + tr.dataset.gameKey + "\0" + tr.dataset.maturity;
+    // One row per project; prototype/released versions are merged.
+    return tr.dataset.category + "\0" + tr.dataset.gameKey;
+  }
+
+  function itemGame(entry) {
+    return entry && entry.g ? entry.g : entry;
+  }
+
+  function itemVersionMaturity(entry, ver) {
+    if (!entry || !entry.versionMaturities) return null;
+    return entry.versionMaturities[ver] || null;
+  }
+
+  function versionLabel(vk, index, versionMaturities, hasMixedMaturity) {
+    var parts = [vk];
+    if (index === 0) parts.push("LATEST");
+    // When a project has graduated, keep historical prototype builds labeled.
+    else if (
+      hasMixedMaturity &&
+      versionMaturities &&
+      versionMaturities[vk] === "prototype"
+    ) {
+      parts.push("Prototype");
+    }
+    return parts.join(" — ");
+  }
+
+  function setRowChannelTag(tr, maturity) {
+    var tags = tr.querySelector(".cell-tags .record-tags");
+    if (!tags) return;
+    var channel = tags.querySelector(".record-tag--channel");
+    if (!channel) return;
+    var mat = String(maturity || "");
+    channel.className = "record-tag record-tag--channel record-tag--" + mat;
+    channel.textContent = recordChannelLabel(mat);
+  }
+
+  /** Merge same gameKey across released/prototype into one catalog row. */
+  function mergeMaturityRows(rawRows) {
+    var byKey = Object.create(null);
+    var order = [];
+    for (var i = 0; i < rawRows.length; i++) {
+      var r = rawRows[i];
+      var key = r.category + "\0" + r.gameKey;
+      var existing = byKey[key];
+      if (!existing) {
+        var versions = {};
+        var versionMaturities = Object.create(null);
+        var srcVersions = (r.g && r.g.versions) || {};
+        for (var vi = 0; vi < r.verKeys.length; vi++) {
+          var vk = r.verKeys[vi];
+          versions[vk] = srcVersions[vk];
+          versionMaturities[vk] = r.maturity;
+        }
+        existing = {
+          category: r.category,
+          gameKey: r.gameKey,
+          name: r.name,
+          g: {
+            display_name: (r.g && r.g.display_name) || r.name,
+            versions: versions,
+          },
+          versionMaturities: versionMaturities,
+        };
+        byKey[key] = existing;
+        order.push(key);
+        continue;
+      }
+      // Prefer released over prototype when the same version key exists in both.
+      var incoming = (r.g && r.g.versions) || {};
+      for (var vj = 0; vj < r.verKeys.length; vj++) {
+        var ver = r.verKeys[vj];
+        var prevMat = existing.versionMaturities[ver];
+        if (
+          prevMat == null ||
+          maturityRank(r.maturity) < maturityRank(prevMat)
+        ) {
+          existing.g.versions[ver] = incoming[ver];
+          existing.versionMaturities[ver] = r.maturity;
+        }
+      }
+      if (r.g && r.g.display_name) existing.g.display_name = r.g.display_name;
+      if (r.name) existing.name = r.name;
+    }
+
+    var out = [];
+    for (var oi = 0; oi < order.length; oi++) {
+      var item = byKey[order[oi]];
+      var verKeys = sortVersionsDesc(
+        Object.keys(item.g.versions || {}).filter(function (vk) {
+          return versionHasZip(item.g.versions[vk]);
+        })
+      );
+      if (verKeys.length === 0) continue;
+      var mats = {};
+      for (var mi = 0; mi < verKeys.length; mi++) {
+        mats[item.versionMaturities[verKeys[mi]]] = true;
+      }
+      var matList = Object.keys(mats);
+      item.verKeys = verKeys;
+      item.hasMixedMaturity = matList.length > 1;
+      // Channel for default (newest) version — updates when the dropdown changes.
+      item.maturity = item.versionMaturities[verKeys[0]] || "released";
+      out.push(item);
+    }
+    return out;
   }
 
   function defaultSortDir(key) {
@@ -697,8 +802,9 @@
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       var okPlatCpu = true;
+      var entry = catalogItemsByKey && catalogItemsByKey[rowItemKey(row)];
+      var g = itemGame(entry);
       if (platOn || cpuOn) {
-        var g = catalogItemsByKey && catalogItemsByKey[rowItemKey(row)];
         if (g) {
           var verKeys = sortVersionsDesc(
             Object.keys(g.versions || {}).filter(function (vk) {
@@ -711,7 +817,22 @@
         }
       }
       var okMat = true;
-      if (matOn) okMat = activeFilterMaturities.has(row.dataset.maturity);
+      if (matOn) {
+        // Show project if any of its versions match the selected channel(s).
+        okMat = false;
+        if (entry && entry.versionMaturities && g) {
+          var allVers = Object.keys(g.versions || {});
+          for (var mv = 0; mv < allVers.length; mv++) {
+            var mat = entry.versionMaturities[allVers[mv]];
+            if (mat && activeFilterMaturities.has(mat) && versionHasZip(g.versions[allVers[mv]])) {
+              okMat = true;
+              break;
+            }
+          }
+        } else {
+          okMat = activeFilterMaturities.has(row.dataset.maturity);
+        }
+      }
       var okCat = true;
       if (catOn) okCat = activeFilterCategories.has(row.dataset.category);
       var okQ = true;
@@ -1018,15 +1139,19 @@
   }
 
   function updateRow(tr, itemsByKey) {
-    var g = itemsByKey[rowItemKey(tr)];
+    var entry = itemsByKey[rowItemKey(tr)];
+    var g = itemGame(entry);
     if (!g) return;
 
     var gameKey = tr.dataset.gameKey;
-    var maturity = tr.dataset.maturity;
     var category = tr.dataset.category;
     var versionSel = tr.querySelector(".js-version");
     var platformSel = tr.querySelector(".js-platform");
     var ver = versionSel.value;
+    var maturity =
+      itemVersionMaturity(entry, ver) || tr.dataset.maturity || "released";
+    tr.dataset.maturity = maturity;
+    setRowChannelTag(tr, maturity);
     var vData = (g.versions && g.versions[ver]) || {};
     var available = platformsWithZipForVersion(vData);
     var keepPlat = platformSel.value;
@@ -1232,6 +1357,7 @@
         showStatus("Nothing Available", true);
         return;
       }
+      rows = mergeMaturityRows(rows);
     } else {
       var releasedDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/released/catalog.json");
       var prototypeDoc = await fetchCatalogJson(base + "/" + PAGE_SECTION + "/prototype/catalog.json");
@@ -1244,6 +1370,20 @@
       var cat = PAGE_SECTION === "apps" ? "apps" : "games";
       collectIntoRows(releasedDoc, "released", cat, rows);
       collectIntoRows(prototypeDoc, "prototype", cat, rows);
+      rows = mergeMaturityRows(rows);
+    }
+
+    // Quickstart page is a single channel — no merge across released/prototype.
+    if (QUICKSTART_ONLY) {
+      for (var qsi = 0; qsi < rows.length; qsi++) {
+        var qr = rows[qsi];
+        var qm = Object.create(null);
+        for (var qvi = 0; qvi < qr.verKeys.length; qvi++) {
+          qm[qr.verKeys[qvi]] = qr.maturity;
+        }
+        qr.versionMaturities = qm;
+        qr.hasMixedMaturity = false;
+      }
     }
 
     rows.sort(function (a, b) {
@@ -1261,7 +1401,10 @@
     var itemsByKey = Object.create(null);
     for (var ri = 0; ri < rows.length; ri++) {
       var r = rows[ri];
-      itemsByKey[r.category + "\0" + r.gameKey + "\0" + r.maturity] = r.g;
+      itemsByKey[r.category + "\0" + r.gameKey] = {
+        g: r.g,
+        versionMaturities: r.versionMaturities || Object.create(null),
+      };
     }
     catalogItemsByKey = itemsByKey;
 
@@ -1285,8 +1428,12 @@
       var verOptions = "";
       for (var vi = 0; vi < item.verKeys.length; vi++) {
         var vk = item.verKeys[vi];
-        // verKeys is sorted newest-first; flag the newest as LATEST (value stays bare).
-        var verLabel = vi === 0 ? vk + " — LATEST" : vk;
+        var verLabel = versionLabel(
+          vk,
+          vi,
+          item.versionMaturities,
+          !!item.hasMixedMaturity
+        );
         verOptions += '<option value="' + escapeAttr(vk) + '">' + escapeHtml(verLabel) + "</option>";
       }
       var vid = "stuff-ver-" + rj;

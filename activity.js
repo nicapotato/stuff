@@ -1,6 +1,7 @@
 /* Stuff /activity — version release timeline. Projects map to hues;
  * click toggles, double-click isolates, click isolated hue re-adds others,
  * Reset restores all. Markers: ★ major, ▲ minor, ● patch (vs prior release).
+ * First released version after prototype history is marked Prototype → Released.
  * View modes: detail (every release) or year aggregation. Fails loudly when
  * catalogs cannot be loaded.
  */
@@ -43,7 +44,7 @@
   var projects = [];
   /** @type {Record<string,{key:string,name:string,hue:number,visible:boolean}>} */
   var projectByKey = Object.create(null);
-  /** @type {{t:number,iso:string,projectKey:string,name:string,version:string,maturity:string,category:string,bump:string}[]} */
+  /** @type {{t:number,iso:string,projectKey:string,name:string,version:string,maturity:string,category:string,bump:string,transition?:boolean}[]} */
   var events = [];
   /** When set, only this project is visible (double-click isolate). */
   var isolatedKey = null;
@@ -151,6 +152,46 @@
         if (cur) prev = cur;
       }
     }
+  }
+
+  /**
+   * Mark the first released version that follows at least one earlier prototype
+   * build for the same project (prototype → release graduation).
+   */
+  function annotateTransitions(list) {
+    var byProject = Object.create(null);
+    for (var i = 0; i < list.length; i++) {
+      var ev = list[i];
+      ev.transition = false;
+      if (!byProject[ev.projectKey]) byProject[ev.projectKey] = [];
+      byProject[ev.projectKey].push(ev);
+    }
+    var keys = Object.keys(byProject);
+    for (var ki = 0; ki < keys.length; ki++) {
+      var group = byProject[keys[ki]].slice().sort(function (a, b) {
+        if (a.t !== b.t) return a.t - b.t;
+        return a.version.localeCompare(b.version, undefined, { numeric: true });
+      });
+      var sawPrototype = false;
+      var marked = false;
+      for (var gi = 0; gi < group.length; gi++) {
+        var cur = group[gi];
+        if (cur.maturity === "prototype") {
+          sawPrototype = true;
+          continue;
+        }
+        if (!marked && sawPrototype && cur.maturity === "released") {
+          cur.transition = true;
+          marked = true;
+        }
+      }
+    }
+  }
+
+  function maturityLabel(mat) {
+    if (mat === "released") return "Released";
+    if (mat === "prototype") return "Prototype";
+    return String(mat || "");
   }
 
   function collectEvents(doc, maturity, category, out) {
@@ -550,6 +591,7 @@
       return p && p.visible;
     });
     // Recompute bumps within the active category/channel filter.
+    // Keep transition flags from the full timeline (prototype history may be filtered out).
     var copies = list.map(function (ev) {
       return {
         t: ev.t,
@@ -560,6 +602,7 @@
         maturity: ev.maturity,
         category: ev.category,
         bump: ev.bump,
+        transition: !!ev.transition,
       };
     });
     annotateBumps(copies);
@@ -610,6 +653,13 @@
         var versions = list.map(function (e) {
           return e.version;
         });
+        var yearTransition = false;
+        for (var ti = 0; ti < list.length; ti++) {
+          if (list[ti].transition) {
+            yearTransition = true;
+            break;
+          }
+        }
         out.push({
           t: last.t,
           iso: last.iso,
@@ -619,6 +669,7 @@
           maturity: last.maturity,
           category: last.category,
           bump: bumpKind(prevSem, lastSem),
+          transition: yearTransition,
           year: y,
           versions: versions,
           aggregated: true,
@@ -745,9 +796,25 @@
     ctx.closePath();
   }
 
+  function drawTransitionHalo(x, y, r) {
+    ctx.beginPath();
+    ctx.strokeStyle = "#ffd54f";
+    ctx.lineWidth = 2;
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.lineWidth = 1;
+    ctx.arc(x, y, r + 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   function drawMarker(ev, x, y, highlighted) {
     var p = projectByKey[ev.projectKey];
     var color = hueColor(p.hue, 0.95);
+    if (ev.transition) {
+      drawTransitionHalo(x, y, highlighted ? 11 : 9);
+    }
     if (ev.bump === "major") {
       var majorR = highlighted ? 8 : 6;
       ctx.fillStyle = color;
@@ -916,6 +983,9 @@
     }
     var bumpLabel =
       ev.bump === "major" ? "major ★" : ev.bump === "minor" ? "minor ▲" : "patch ●";
+    var channelLine = ev.transition
+      ? '<span class="activity-tooltip-transition">Prototype → Released</span>'
+      : escapeHtml(maturityLabel(ev.maturity));
     var versionLine;
     if (ev.aggregated && ev.versions && ev.versions.length > 1) {
       versionLine =
@@ -925,14 +995,16 @@
         " releases (highest: " +
         bumpLabel +
         ")<br>" +
+        channelLine +
+        "<br>" +
         escapeHtml(ev.versions.join(", "));
     } else {
       versionLine =
         escapeHtml(ev.version) +
         " · " +
         bumpLabel +
-        " · " +
-        escapeHtml(ev.maturity) +
+        "<br>" +
+        channelLine +
         "<br>" +
         escapeHtml(when);
     }
@@ -1008,12 +1080,31 @@
       showStatus("Nothing Available", true);
       throw new Error("no catalogs returned");
     }
+    // Same project/version can exist in prototype then later in released — keep one.
+    var deduped = [];
+    var seen = Object.create(null);
+    var maturityPrefer = { released: 0, prototype: 1 };
+    collected.sort(function (a, b) {
+      var pa = maturityPrefer[a.maturity] != null ? maturityPrefer[a.maturity] : 9;
+      var pb = maturityPrefer[b.maturity] != null ? maturityPrefer[b.maturity] : 9;
+      if (pa !== pb) return pa - pb;
+      return a.t - b.t;
+    });
+    for (var di = 0; di < collected.length; di++) {
+      var ev = collected[di];
+      var dk = ev.projectKey + "\0" + ev.version;
+      if (seen[dk]) continue;
+      seen[dk] = true;
+      deduped.push(ev);
+    }
+    collected = deduped;
     if (!collected.length) {
       showStatus("No version releases with timestamps found in catalogs.", true);
       throw new Error("no dated version events");
     }
 
     annotateBumps(collected);
+    annotateTransitions(collected);
     events = collected.sort(function (a, b) {
       return a.t - b.t;
     });
