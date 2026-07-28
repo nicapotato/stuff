@@ -2,6 +2,17 @@
 
 **Static stuff site** (vanilla JavaScript and CSS). The main page is a sortable **software** table for released/prototype builds: titles, tags, versions, platforms, release dates, checksums, downloads, and play links. A project that graduates from prototype to released stays **one row**; older prototype versions stay available in the version dropdown (labeled Prototype) and the channel tag follows the selected version. `/quickstart/` is a separate table for quickstart templates. `/activity/` plots version releases over time (project hues are toggleable; quickstarts excluded). Supporting folders include `apps/`, `games/`, `prototype/`, `quickstart/`, and related assets.
 
+Directory shortcuts redirect into the filtered catalog (same pattern as `/apps/` and `/games/`):
+
+| Path | Lands on |
+|------|----------|
+| `/apps/released/` | `/?category=apps` (released is the default channel) |
+| `/apps/prototype/` | `/?category=apps&maturity=prototype` |
+| `/apps/quickstart/` | `/quickstart/?category=apps` |
+| `/games/released/` | `/?category=games` |
+| `/games/prototype/` | `/?category=games&maturity=prototype` |
+| `/games/quickstart/` | `/quickstart/?category=games` |
+
 ## User guide
 
 There is no install or build step; open `index.html` or use a local static server.
