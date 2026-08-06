@@ -22,8 +22,8 @@ var SHELL_PATHS = [
 
 function pickPlayPlatform(platforms) {
   if (!platforms) return null;
-  if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
   if (platforms.web && platforms.web.play_url) return platforms.web;
+  if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
   return null;
 }
 

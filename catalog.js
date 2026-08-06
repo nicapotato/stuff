@@ -16,8 +16,8 @@
   var macBubbleEl = document.getElementById("mac-quarantine-notice");
   /** Order for platform keys in catalog JSON (compound keys + legacy). */
   var catalogPlatformOrder = [
-    "wasm",
     "web",
+    "wasm",
     "macos_arm64",
     "macos_x86_64",
     "macos",
@@ -116,10 +116,11 @@
   }
 
   /** Play page lives at {category}/{maturity}/play.html relative to site root. */
-  function playHref(category, gameKey, version, maturity) {
+  function playHref(category, gameKey, version, maturity, platform) {
     var u = new URL(category + "/" + maturity + "/play.html", window.location.href);
     u.searchParams.set("game", gameKey);
     u.searchParams.set("version", version);
+    if (platform) u.searchParams.set("platform", platform);
     return u.pathname + u.search + u.hash;
   }
 
@@ -344,7 +345,7 @@
       return o.value;
     });
     if (slot === "web") {
-      var order = ["wasm", "web"];
+      var order = ["web", "wasm"];
       var webOpts = [];
       for (var i = 0; i < order.length; i++) {
         if (opts.indexOf(order[i]) >= 0) webOpts.push(order[i]);
@@ -1232,7 +1233,7 @@
     var playA = tr.querySelector(".js-play");
     var playDash = tr.querySelector(".js-play-dash");
     if (hasPlayable(info, plat)) {
-      playA.href = playHref(category, gameKey, ver, maturity);
+      playA.href = playHref(category, gameKey, ver, maturity, plat);
       playA.target = "_blank";
       playA.rel = "noopener noreferrer";
       playA.hidden = false;

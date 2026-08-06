@@ -18,6 +18,9 @@
   var gameKey = params.get("game");
   var versionRaw = params.get("version");
   var version = versionRaw != null ? String(versionRaw).trim() : "";
+  var platformParam = params.get("platform");
+  var platformWanted =
+    platformParam != null ? String(platformParam).trim().toLowerCase() : "";
   var maturity = maturityFromPath();
   if (
     maturity !== "prototype" &&
@@ -92,10 +95,18 @@
     return;
   }
 
-  function pickPlayPlatform(platforms) {
+  function pickPlayPlatform(platforms, preferred) {
     if (!platforms) return null;
-    if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
+    if (
+      preferred &&
+      platforms[preferred] &&
+      platforms[preferred].play_url
+    ) {
+      return platforms[preferred];
+    }
+    /* Prefer HTML/JS (web) when both web + wasm are published. */
     if (platforms.web && platforms.web.play_url) return platforms.web;
+    if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
     return null;
   }
 
@@ -143,28 +154,31 @@
       fail("Unknown version: " + version);
       return;
     }
-    var play = pickPlayPlatform(v.platforms);
+    var play = pickPlayPlatform(v.platforms, platformWanted);
     if (!play || !play.play_url) {
       fail("No browser play_url (wasm or web) for this version.");
       return;
     }
 
     var playUrl = play.play_url;
+
+    // Games flagged top_level cannot run inside a cross-origin iframe:
+    // SharedArrayBuffer isolation (pthreads) and showDirectoryPicker (local
+    // library access) are both blocked there. Navigate the tab to the game.
+    // Skip HEAD preflight: hosts like rocknroller.nicapotato.com route
+    // /<ver>/ via GitHub Pages 404.html (HTTP 404 with a working player body).
+    if (play.top_level) {
+      document.title =
+        (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
+      window.location.replace(playUrl);
+      return;
+    }
+
     var headResult = await verifyPlayUrlHead(playUrl);
     if (headResult === false) {
       fail(
         "This web build failed to load (server returned an error). Check the link or try again later."
       );
-      return;
-    }
-
-    // Games flagged top_level cannot run inside a cross-origin iframe:
-    // SharedArrayBuffer isolation (pthreads) and showDirectoryPicker (local
-    // library access) are both blocked there. Navigate the tab to the game.
-    if (play.top_level) {
-      document.title =
-        (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
-      window.location.replace(playUrl);
       return;
     }
 
