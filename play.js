@@ -110,12 +110,21 @@
     return null;
   }
 
+  /** Pre-release / WIP builds (e.g. 0.1.37-dev) are published but never "latest". */
+  function isDevVersion(ver) {
+    return /-dev$/i.test(String(ver || ""));
+  }
+
   function highestVersionKey(versionsObj) {
     var keys = Object.keys(versionsObj || {});
     if (!keys.length) return null;
     keys.sort(function (a, b) {
       return b.localeCompare(a, undefined, { numeric: true });
     });
+    for (var i = 0; i < keys.length; i++) {
+      if (!isDevVersion(keys[i])) return keys[i];
+    }
+    // All entries are -dev (unusual); fall back to the highest key.
     return keys[0];
   }
 

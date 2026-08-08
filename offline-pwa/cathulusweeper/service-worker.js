@@ -27,12 +27,19 @@ function pickPlayPlatform(platforms) {
   return null;
 }
 
+function isDevVersion(ver) {
+  return /-dev$/i.test(String(ver || ""));
+}
+
 function highestVersionKey(versionsObj) {
   var keys = Object.keys(versionsObj || {});
   if (!keys.length) return null;
   keys.sort(function (a, b) {
     return b.localeCompare(a, undefined, { numeric: true });
   });
+  for (var i = 0; i < keys.length; i++) {
+    if (!isDevVersion(keys[i])) return keys[i];
+  }
   return keys[0];
 }
 

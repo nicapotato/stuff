@@ -249,6 +249,20 @@
     });
   }
 
+  /** Pre-release / WIP builds (e.g. 0.1.37-dev) stay in the list but are never default/"latest". */
+  function isDevVersion(ver) {
+    return /-dev$/i.test(String(ver || ""));
+  }
+
+  /** Prefer highest non-dev; fall back to highest key if every version is -dev. */
+  function preferredLatestVersion(verKeys) {
+    if (!verKeys || !verKeys.length) return null;
+    for (var i = 0; i < verKeys.length; i++) {
+      if (!isDevVersion(verKeys[i])) return verKeys[i];
+    }
+    return verKeys[0];
+  }
+
   function platformsWithZipForVersion(v) {
     var pl = (v && v.platforms) || {};
     var out = [];
@@ -544,8 +558,9 @@
       var matList = Object.keys(mats);
       item.verKeys = verKeys;
       item.hasMixedMaturity = matList.length > 1;
-      // Channel for default (newest) version — updates when the dropdown changes.
-      item.maturity = item.versionMaturities[verKeys[0]] || "released";
+      // Channel for default (newest non-dev) version — updates when the dropdown changes.
+      var defaultVer = preferredLatestVersion(verKeys);
+      item.maturity = item.versionMaturities[defaultVer] || "released";
       out.push(item);
     }
     return out;
@@ -1426,6 +1441,7 @@
       tr.dataset.sortSize = "0";
       tr.dataset.platformsUnion = platformsUnionForGame(item.g, item.verKeys).join(",");
 
+      var defaultVer = preferredLatestVersion(item.verKeys);
       var verOptions = "";
       for (var vi = 0; vi < item.verKeys.length; vi++) {
         var vk = item.verKeys[vi];
@@ -1435,7 +1451,15 @@
           item.versionMaturities,
           !!item.hasMixedMaturity
         );
-        verOptions += '<option value="' + escapeAttr(vk) + '">' + escapeHtml(verLabel) + "</option>";
+        var selectedAttr = vk === defaultVer ? " selected" : "";
+        verOptions +=
+          '<option value="' +
+          escapeAttr(vk) +
+          '"' +
+          selectedAttr +
+          ">" +
+          escapeHtml(verLabel) +
+          "</option>";
       }
       var vid = "stuff-ver-" + rj;
       var pid = "stuff-plat-" + rj;
