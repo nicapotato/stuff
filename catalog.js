@@ -16,7 +16,9 @@
   var macBubbleEl = document.getElementById("mac-quarantine-notice");
   /** Order for platform keys in catalog JSON (compound keys + legacy). */
   var catalogPlatformOrder = [
+    "web-js",
     "web",
+    "web-raylib",
     "wasm",
     "macos_arm64",
     "macos_x86_64",
@@ -28,6 +30,7 @@
     "windows_arm64",
     "windows",
   ];
+  var WEB_CATALOG_CYCLE_ORDER = ["web-js", "web", "web-raylib", "wasm"];
   var uiPlatformOrder = ["linux", "web", "macos", "windows"];
   var CPU_ORDER = ["x86_64", "arm64"];
   // Main catalog: released + prototype. Quickstarts live on /quickstart/.
@@ -146,10 +149,17 @@
     return String(mat);
   }
 
-  function platformHumanLabel(key) {
+  function isWebCatalogKey(k) {
+    return k === "web" || k === "wasm" || k === "web-js" || k === "web-raylib";
+  }
+
+  function platformHumanLabel(key, info) {
+    if (info && info.label) return String(info.label);
     var labels = {
       wasm: "Web (WASM)",
       web: "Web",
+      "web-js": "Web (JS)",
+      "web-raylib": "Web (Raylib)",
       macos_arm64: "macOS (arm64)",
       macos_x86_64: "macOS (x86_64)",
       // Legacy bare key: every published bare-macos build came from arm64 runners.
@@ -167,16 +177,16 @@
 
   /** Maps catalog platform key to toolbar icon slot (web / macos / linux / windows). */
   function uiSlotFromCatalogKey(k) {
-    if (k === "wasm" || k === "web") return "web";
+    if (isWebCatalogKey(k)) return "web";
     if (String(k).indexOf("macos") === 0) return "macos";
     if (String(k).indexOf("linux") === 0) return "linux";
     if (String(k).indexOf("windows") === 0) return "windows";
     return k;
   }
 
-  /** Returns x86_64 | arm64 | null (null = legacy single-arch key or wasm). */
+  /** Returns x86_64 | arm64 | null (null = legacy single-arch key or web). */
   function cpuFromCatalogKey(k) {
-    if (k === "wasm" || k === "web") return null;
+    if (isWebCatalogKey(k)) return null;
     // Legacy bare keys map to the arch their CI runners used:
     // windows-latest = x86_64, macos-latest = arm64.
     if (k === "windows") return "x86_64";
@@ -191,7 +201,7 @@
   function artifactMatchesFilters(key) {
     var slot = uiSlotFromCatalogKey(key);
     if (!activeFilterPlatforms.has(slot)) return false;
-    if (key === "wasm" || key === "web") return true;
+    if (isWebCatalogKey(key)) return true;
     var cpu = cpuFromCatalogKey(key);
     if (cpu === null) {
       return activeFilterCpus.has("x86_64") || activeFilterCpus.has("arm64");
@@ -290,7 +300,7 @@
     var seen = Object.create(null);
     for (var i = 0; i < rawList.length; i++) {
       var k = rawList[i];
-      if (k === "wasm" || k === "web") seen.web = true;
+      if (isWebCatalogKey(k)) seen.web = true;
       else {
         seen[k] = true;
         seen[uiSlotFromCatalogKey(k)] = true;
@@ -322,8 +332,12 @@
   }
 
   function uiSlotHasCatalogZip(slot, catalogKeysWithZip) {
-    if (slot === "web")
-      return catalogKeysWithZip.indexOf("wasm") >= 0 || catalogKeysWithZip.indexOf("web") >= 0;
+    if (slot === "web") {
+      for (var wi = 0; wi < catalogKeysWithZip.length; wi++) {
+        if (isWebCatalogKey(catalogKeysWithZip[wi])) return true;
+      }
+      return false;
+    }
     for (var i = 0; i < catalogKeysWithZip.length; i++) {
       var k = catalogKeysWithZip[i];
       if (k === slot) return true;
@@ -333,8 +347,7 @@
   }
 
   function uiSlotMatchesPlatform(slot, selectedCatalogPlatform) {
-    if (slot === "web")
-      return selectedCatalogPlatform === "wasm" || selectedCatalogPlatform === "web";
+    if (slot === "web") return isWebCatalogKey(selectedCatalogPlatform);
     if (slot === "macos") {
       return (
         selectedCatalogPlatform === "macos" || String(selectedCatalogPlatform).indexOf("macos_") === 0
@@ -359,7 +372,7 @@
       return o.value;
     });
     if (slot === "web") {
-      var order = ["web", "wasm"];
+      var order = WEB_CATALOG_CYCLE_ORDER;
       var webOpts = [];
       for (var i = 0; i < order.length; i++) {
         if (opts.indexOf(order[i]) >= 0) webOpts.push(order[i]);
@@ -390,7 +403,7 @@
     return PLATFORM_SVG[p].replace(/width="20"/, 'width="18"').replace(/height="20"/, 'height="18"');
   }
 
-  /** Maps catalog platform key (wasm/web/linux/…) to UI icon slot (web for wasm/web). */
+  /** Maps catalog platform key to UI icon slot (web for web-js/web/web-raylib/wasm). */
   function uiSlotFromCatalogPlatform(catalogPlatform) {
     return uiSlotFromCatalogKey(catalogPlatform);
   }
@@ -1124,7 +1137,7 @@
   }
 
   function hasPlayable(info, platform) {
-    return !!(info && info.play_url && (platform === "wasm" || platform === "web"));
+    return !!(info && info.play_url && isWebCatalogKey(platform));
   }
 
   function buildIconRow() {
@@ -1177,7 +1190,7 @@
       var p = available[i];
       var opt = document.createElement("option");
       opt.value = p;
-      opt.textContent = platformHumanLabel(p);
+      opt.textContent = platformHumanLabel(p, vData.platforms && vData.platforms[p]);
       platformSel.appendChild(opt);
     }
 
@@ -1216,7 +1229,7 @@
       zipA.href = info.zip_url;
       zipA.hidden = false;
       if (zipIcon) zipIcon.innerHTML = zipLinkIconSvg(plat);
-      zipA.setAttribute("aria-label", "Download ZIP (" + platformHumanLabel(plat) + ")");
+      zipA.setAttribute("aria-label", "Download ZIP (" + platformHumanLabel(plat, info) + ")");
     } else {
       zipA.removeAttribute("href");
       zipA.hidden = true;

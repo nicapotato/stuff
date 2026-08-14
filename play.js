@@ -104,8 +104,10 @@
     ) {
       return platforms[preferred];
     }
-    /* Prefer HTML/JS (web) when both web + wasm are published. */
+    /* Prefer HTML/JS (web-js, then web) when multiple web platforms are published. */
+    if (platforms["web-js"] && platforms["web-js"].play_url) return platforms["web-js"];
     if (platforms.web && platforms.web.play_url) return platforms.web;
+    if (platforms["web-raylib"] && platforms["web-raylib"].play_url) return platforms["web-raylib"];
     if (platforms.wasm && platforms.wasm.play_url) return platforms.wasm;
     return null;
   }
@@ -165,7 +167,7 @@
     }
     var play = pickPlayPlatform(v.platforms, platformWanted);
     if (!play || !play.play_url) {
-      fail("No browser play_url (wasm or web) for this version.");
+      fail("No browser play_url (web-js, web, web-raylib, or wasm) for this version.");
       return;
     }
 
