@@ -112,21 +112,42 @@
     return null;
   }
 
-  /** Pre-release / WIP builds (e.g. 0.1.37-dev) are published but never "latest". */
+  /** "0.1.25-dev-uiupdate" → { core: "0.1.25", pre: "dev-uiupdate" }. */
+  function versionCoreAndPre(ver) {
+    var s = String(ver || "");
+    var i = s.indexOf("-");
+    if (i < 0) return { core: s, pre: "" };
+    return { core: s.slice(0, i), pre: s.slice(i + 1) };
+  }
+
+  /**
+   * Newest numeric core first. Same core: full/stable (no suffix) above
+   * pre-release (0.1.25 > 0.1.25-dev > 0.1.25-dev-uiupdate).
+   */
+  function compareVersionKeysDesc(a, b) {
+    var pa = versionCoreAndPre(a);
+    var pb = versionCoreAndPre(b);
+    var coreCmp = pa.core.localeCompare(pb.core, undefined, { numeric: true });
+    if (coreCmp !== 0) return -coreCmp;
+    if (!pa.pre && pb.pre) return -1;
+    if (pa.pre && !pb.pre) return 1;
+    if (!pa.pre && !pb.pre) return 0;
+    return pa.pre.localeCompare(pb.pre, undefined, { numeric: true });
+  }
+
+  /** Any hyphen suffix is a pre-release (0.1.25-dev, 0.1.25-dev-uiupdate). */
   function isDevVersion(ver) {
-    return /-dev$/i.test(String(ver || ""));
+    return String(ver || "").indexOf("-") >= 0;
   }
 
   function highestVersionKey(versionsObj) {
     var keys = Object.keys(versionsObj || {});
     if (!keys.length) return null;
-    keys.sort(function (a, b) {
-      return b.localeCompare(a, undefined, { numeric: true });
-    });
+    keys.sort(compareVersionKeysDesc);
     for (var i = 0; i < keys.length; i++) {
       if (!isDevVersion(keys[i])) return keys[i];
     }
-    // All entries are -dev (unusual); fall back to the highest key.
+    // All entries are pre-release (unusual); fall back to the highest key.
     return keys[0];
   }
 
