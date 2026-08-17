@@ -124,7 +124,27 @@
     u.searchParams.set("game", gameKey);
     u.searchParams.set("version", version);
     if (platform) u.searchParams.set("platform", platform);
+    if (window.stuffAnalytics && typeof window.stuffAnalytics.sessionId === "function") {
+      u.searchParams.set("sid", window.stuffAnalytics.sessionId());
+    }
     return u.pathname + u.search + u.hash;
+  }
+
+  function rowTrackFields(row) {
+    var versionSel = row.querySelector(".js-version");
+    var platformSel = row.querySelector(".js-platform");
+    return {
+      app: row.dataset.gameKey,
+      platform: platformSel ? platformSel.value : "",
+      version: versionSel ? versionSel.value : "",
+    };
+  }
+
+  function trackCatalogAction(action, row) {
+    if (!row || !window.stuffAnalytics || typeof window.stuffAnalytics.track !== "function") {
+      return;
+    }
+    window.stuffAnalytics.track(action, rowTrackFields(row));
   }
 
   function escapeHtml(s) {
@@ -1571,6 +1591,20 @@
       var expanded = cell.classList.toggle("sha-expanded");
       tbtn.setAttribute("aria-expanded", expanded ? "true" : "false");
       tbtn.textContent = expanded ? "Hide SHA" : "Show SHA";
+    });
+
+    rowsEl.addEventListener("click", function (ev) {
+      var zip = ev.target.closest("a.js-zip");
+      if (zip && !zip.hidden && zip.getAttribute("href")) {
+        var zipRow = zip.closest("tr.catalog-row");
+        if (zipRow) trackCatalogAction("download", zipRow);
+        return;
+      }
+      var play = ev.target.closest("a.js-play");
+      if (play && !play.hidden && play.getAttribute("href")) {
+        var playRow = play.closest("tr.catalog-row");
+        if (playRow) trackCatalogAction("play", playRow);
+      }
     });
 
     rowsEl.addEventListener("click", function (ev) {

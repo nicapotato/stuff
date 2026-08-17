@@ -172,6 +172,28 @@
     }
 
     var playUrl = play.play_url;
+    var playPlatformKey = platformWanted;
+    if (v.platforms) {
+      var pkeys = Object.keys(v.platforms);
+      for (var pi = 0; pi < pkeys.length; pi++) {
+        if (v.platforms[pkeys[pi]] === play) {
+          playPlatformKey = pkeys[pi];
+          break;
+        }
+      }
+    }
+
+    function trackPlay() {
+      if (params.get("sid")) return;
+      if (!window.stuffAnalytics || typeof window.stuffAnalytics.track !== "function") {
+        return;
+      }
+      window.stuffAnalytics.track("play", {
+        app: gameKey,
+        platform: playPlatformKey,
+        version: resolvedVersion,
+      });
+    }
 
     // Games flagged top_level cannot run inside a cross-origin iframe:
     // SharedArrayBuffer isolation (pthreads) and showDirectoryPicker (local
@@ -181,6 +203,7 @@
     if (play.top_level) {
       document.title =
         (g.display_name || gameKey) + " — " + resolvedVersion + " — nicapotato";
+      trackPlay();
       window.location.replace(playUrl);
       return;
     }
@@ -216,6 +239,7 @@
     // Permissions Policy: cross-origin embeds need delegation for getUserMedia (e.g. guitar tuner).
     iframe.setAttribute("allow", "fullscreen; microphone");
 
+    trackPlay();
     iframe.src = playUrl;
   })();
 })();
